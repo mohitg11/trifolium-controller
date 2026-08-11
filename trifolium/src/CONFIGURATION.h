@@ -4,15 +4,15 @@
 // config to check config and code versions match
 #define CONFIG_VERSION_MAJOR 1
 #define CONFIG_VERSION_MINOR 5
-#define CONFIG_VERSION_PATCH 0
+#define CONFIG_VERSION_PATCH 1
 
 // Flywheel Settings
 // If variableFPS is true, the following settings are set on boot and locked. Otherwise, it always uses the first mode
 bool variableFPS = true;
-int32_t revRPMset[3][4] = {{28000, 35000, 28000, 350000}, {28000, 35000, 28000, 35000}, {28000, 35000, 28000, 35000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
-uint32_t dwellTimeSet_ms[3] = {0, 0, 0};                                                                               // how long to keep the flywheels at full rpm for after releasing the trigger, in milliseconds
-uint32_t idleTimeSet_ms[3] = {5000, 5000, 5000};                                                                       // how long to keep the flywheels spinning after dwell time, in milliseconds
-uint32_t spindownSpeed = 100;                                                                                          // RPM per ms
+int32_t revRPMset[3][4] = {{26000, 26000, 26000, 26000}, {33000, 33000, 33000, 33000}, {29000, 29000, 29000, 29000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
+uint32_t dwellTimeSet_ms[3] = {0, 0, 0};                                                                              // how long to keep the flywheels at full rpm for after releasing the trigger, in milliseconds
+uint32_t idleTimeSet_ms[3] = {5000, 5000, 5000};                                                                      // how long to keep the flywheels spinning after dwell time, in milliseconds
+uint32_t spindownSpeed = 100;                                                                                         // RPM per ms
 
 int32_t idleRPM[4] = {1000, 1000, 1000, 1000};             // rpm for flywheel idling, set this as low as possible where the wheels still spin reliably
 dshot_mode_t dshotMode = DSHOT300;                         // Options are DSHOT150, DSHOT300, DSHOT600, or DSHOT_OFF. DSHOT300 is recommended, DSHOT150 does not work with either AM32 ESCs or closed loop control, and DSHOT600 seems less reliable. DSHOT_OFF falls back to servo PWM. PWM is not working, probably a ESP32 timer resource conflict with the pusher PWM circuit
@@ -83,7 +83,7 @@ uint32_t lowVoltageCutoff_mv = 2500 * (batteryType + 3); // default is 2.5V per 
 // to protect your batteries, i reccomend doing the calibration below and then setting the cutoff to 3.2V to 3.4V per cell
 float voltageCalibrationFactor = 1.0; // measure the battery voltage with a multimeter and divide that by the "Battery voltage before calibration" printed in the Serial Monitor, then put the result here
 
-boards_t board = trifolium_v1_0_fet_driver; // select the one that matches your board revision
+boards_t board = trifolium_v1_2_fet_driver; // select the one that matches your board revision
 // Options
 // rune_0_2,
 // trifolium_v1_4_fet_driver
@@ -135,7 +135,7 @@ uint32_t pusherCurrentSmoothingFactor = 90;
 // Debug settings
 // For running the blaster without telemetry, set printTelemetry to false and comment out #define USE_RPM_LOGGING
 bool printTelemetry = true; // output printing
-// #define USE_RPM_LOGGING //RPM Logging
+// #define USE_RPM_LOGGING     // RPM Logging
 #ifdef USE_RPM_LOGGING
 const uint32_t rpmLogLength = 2000;
 #endif

@@ -967,6 +967,9 @@ bool fwControlLoop()
         // increment cache index to prevent re-dumping
         cacheIndex++;
 
+        // reboot here is expected RPM-logging behavior, not a crash - make that obvious in the log
+        logger.info("RPM log dump complete (", rpmLogLength, " samples), rebooting now as part of normal RPM logging - this is expected");
+        Serial.flush();
         rp2040.reboot();
     }
 
