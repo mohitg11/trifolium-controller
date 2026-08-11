@@ -9,10 +9,10 @@
 // Flywheel Settings
 // If variableFPS is true, the following settings are set on boot and locked. Otherwise, it always uses the first mode
 bool variableFPS = true;
-int32_t revRPMset[3][4] = {{26000, 26000, 26000, 26000}, {33000, 33000, 33000, 33000}, {29000, 29000, 29000, 29000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
-uint32_t dwellTimeSet_ms[3] = {0, 0, 0};                                                                              // how long to keep the flywheels at full rpm for after releasing the trigger, in milliseconds
-uint32_t idleTimeSet_ms[3] = {5000, 5000, 5000};                                                                      // how long to keep the flywheels spinning after dwell time, in milliseconds
-uint32_t spindownSpeed = 100;                                                                                         // RPM per ms
+int32_t revRPMset[3][4] = {{28000, 35000, 28000, 350000}, {28000, 35000, 28000, 35000}, {28000, 35000, 28000, 35000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
+uint32_t dwellTimeSet_ms[3] = {500, 500, 500};                                                                         // how long to keep the flywheels at full rpm for after releasing the trigger, in milliseconds
+uint32_t idleTimeSet_ms[3] = {240000, 240000, 240000};                                                                 // how long to keep the flywheels spinning after dwell time, in milliseconds
+uint32_t spindownSpeed = 100;                                                                                          // RPM per ms
 
 int32_t idleRPM[4] = {1000, 1000, 1000, 1000};             // rpm for flywheel idling, set this as low as possible where the wheels still spin reliably
 dshot_mode_t dshotMode = DSHOT300;                         // Options are DSHOT150, DSHOT300, DSHOT600, or DSHOT_OFF. DSHOT300 is recommended, DSHOT150 does not work with either AM32 ESCs or closed loop control, and DSHOT600 seems less reliable. DSHOT_OFF falls back to servo PWM. PWM is not working, probably a ESP32 timer resource conflict with the pusher PWM circuit
@@ -20,7 +20,7 @@ dshot_min_delay_t targetLoopTime_us = DSHOT_MIN_DELAY_300; // PID Loop time, mus
 
 // Closed Loop Settings
 flywheelControlType_t flywheelControl = PID_CONTROL; // PID_CONTROL, or TBH_CONTROL
-const bool motors[4] = {true, true, true, true};     // which motors are hooked up
+const bool motors[4] = {false, false, false, false}; // which motors are hooked up
 int32_t fullThrottleRpmTolerance = 5000;             // if rpm is more than this amount below target rpm, send full throttle. too high and rpm will undershoot, too low and it will overshoot NOT USED CURRENTLY
 int32_t firingRPMTolerance = 500;                    // fire pusher when all flywheels are within this amount of target rpm. higher values will mean less pusher delay but potentially fire too early
 int32_t minFiringRPM = 10000;                        // overrides firingRPMTolerance for low rpm settings
@@ -72,7 +72,7 @@ const char *fireModeStrings[3] = {"AUTO", "BINARY", "SEMI"};
 // i find a very useful mode is full auto with a 5 dart limit (burstMode AUTO, burstLength 5)
 // it is your responsibility to set the firemode string to the appropriate option.
 
-uint32_t binaryTriggerTimeout_ms = 1000; // if you hold the trigger for more than this amount of time, releasing the trigger will not fire a burst
+uint32_t binaryTriggerTimeout_ms = 2000; // if you hold the trigger for more than this amount of time, releasing the trigger will not fire a burst
 
 selectFireType_t selectFireType = SWITCH_SELECT_FIRE; // pick NO_SELECT_FIRE, SWITCH_SELECT_FIRE, BUTTON_SELECT_FIRE
 uint8_t defaultFiringMode = 1;                        // only for SWITCH_SELECT_FIRE, what mode to select if no pins are connected
@@ -96,7 +96,7 @@ boards_t board = trifolium_v1_2_fet_driver; // select the one that matches your 
 // trifolium_v1_0_fet_driver
 // pico_zero
 // pico_zero_diana
-const char *blasterName = "Fulcrum"; // set to blaster name
+const char *blasterName = "example"; // set to blaster name
 bool hasDisplay = true;              // set to true if you have an I2C OLED display connected
 bool rotateDisplay = true;           // set to true if your display is upside down
 bool useRpmBaseShotCounter = true;   // if true, shot counter increases based on detected rpm drop, otherwise increases based on pusher cycles
@@ -127,15 +127,15 @@ uint16_t solenoidRetractTime_ms = 35;
 bool revSwitchNormallyClosed = false; // invert switch signal?
 bool triggerSwitchNormallyClosed = false;
 bool cycleSwitchNormallyClosed = false;
-uint16_t debounceTime_ms = 100;      // decrease if you're unable to make fast double taps in semi auto, increase if you're getting accidental double taps in semi auto
+uint16_t debounceTime_ms = 20;       // decrease if you're unable to make fast double taps in semi auto, increase if you're getting accidental double taps in semi auto
 uint16_t pusherDebounceTime_ms = 25; // NOT USED
 const int voltageAveragingWindow = 5;
 uint32_t pusherCurrentSmoothingFactor = 90;
 
 // Debug settings
 // For running the blaster without telemetry, set printTelemetry to false and comment out #define USE_RPM_LOGGING
-bool printTelemetry = true; // output printing
-// #define USE_RPM_LOGGING     // RPM Logging
+bool printTelemetry = false; // output printing
+// #define USE_RPM_LOGGING //RPM Logging
 #ifdef USE_RPM_LOGGING
 const uint32_t rpmLogLength = 2000;
 #endif
