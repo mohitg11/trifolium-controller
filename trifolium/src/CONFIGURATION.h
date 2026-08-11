@@ -4,12 +4,12 @@
 // config to check config and code versions match
 #define CONFIG_VERSION_MAJOR 1
 #define CONFIG_VERSION_MINOR 5
-#define CONFIG_VERSION_PATCH 1
+#define CONFIG_VERSION_PATCH 0
 
 // Flywheel Settings
 // If variableFPS is true, the following settings are set on boot and locked. Otherwise, it always uses the first mode
 bool variableFPS = true;
-int32_t revRPMset[3][4] = {{28000, 35000, 28000, 350000}, {24000, 30000, 24000, 30000}, {20000, 24000, 20000, 24000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
+int32_t revRPMset[3][4] = {{28000, 35000, 28000, 350000}, {28000, 35000, 28000, 35000}, {28000, 35000, 28000, 35000}}; // adjust this to change fps, groups are firingMode 1, 2, 3, and the 4 elements in each group are individual motor RPM. Typically we do assume esc 2/4 and 1/3 are paired
 uint32_t dwellTimeSet_ms[3] = {0, 0, 0};                                                                               // how long to keep the flywheels at full rpm for after releasing the trigger, in milliseconds
 uint32_t idleTimeSet_ms[3] = {5000, 5000, 5000};                                                                       // how long to keep the flywheels spinning after dwell time, in milliseconds
 uint32_t spindownSpeed = 100;                                                                                          // RPM per ms
