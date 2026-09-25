@@ -1,8 +1,8 @@
 # Publishes the firmware and the console from main.
 #
 # release: when trifolium/src/global.h declares a version with no release yet, builds it with
-#          tools/release.py in this clean checkout and makes a release of the .uf2, its checksums
-#          and its manifest. Firmware only - the console is not a release file.
+#          tools/release.py in this clean checkout and makes a release of the .uf2. Firmware only -
+#          the console is not a release file.
 # site:    on every run, builds the console from source and deploys the Pages site: the console,
 #          its offline copy, and every release's .uf2 for the console's firmware list
 #          (tools/build_site.py). Pages must be set to deploy from GitHub Actions.
@@ -52,7 +52,7 @@ jobs:
           python-version: "3.12"
 
       - if: steps.released.outputs.exists == 'false'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.platformio
           key: platformio-${{ runner.os }}-${{ hashFiles('trifolium/platformio.ini') }}
@@ -70,8 +70,7 @@ jobs:
           TAG: v${{ steps.version.outputs.version }}
         run: |
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "$TAG" --generate-notes \
-            trifolium/release/*.uf2 trifolium/release/SHA256SUMS.txt trifolium/release/MANIFEST.txt
+            --title "$TAG" --generate-notes trifolium/release/*.uf2
 
   site:
     needs: release
@@ -86,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         id: pages
 
       - uses: actions/setup-node@v5
@@ -112,9 +111,9 @@ jobs:
           TRIFOLIUM_BUILD_COMMIT: ${{ github.sha }}
         run: python3 trifolium/tools/build_site.py --console trifolium/tools/console/dist/index.html --out _site
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deploy

@@ -24,8 +24,8 @@ be reproduced later from the tag it claims to come from:
 - a dirty working tree (--allow-dirty to override deliberately).
 
 Publishing is the release workflow's (.github/workflows/release-and-site.yml): when global.h's version
-has no release yet, it runs this in a clean checkout and makes a release of the three files above.
-A release carries firmware only. The console is published on the site, built by the same workflow,
+has no release yet, it runs this in a clean checkout and makes a release of the .uf2 alone - the
+checksums and manifest stay with whoever built it. A release carries firmware only. The console is published on the site, built by the same workflow,
 and tests/bench/bench_acceptance.py is what qualifies an image on hardware.
 """
 
