@@ -6,13 +6,26 @@
 # site:    on every run, builds the console from source and deploys the Pages site: the console,
 #          its offline copy, and every release's .uf2 for the console's firmware list
 #          (tools/build_site.py). Pages must be set to deploy from GitHub Actions.
+#
+# The site copies the releases as they are when it deploys, so a release published, edited or
+# deleted by hand has to redeploy it. A release event runs on the release's tag, which Pages will
+# not deploy from, so `refresh` asks for a site-only run on the default branch instead - a deleted
+# release is never rebuilt. Releases this workflow makes do not trigger it again: its token's events
+# start no workflows, a dispatch being the one exception.
 
 name: Release and site
 
 on:
   push:
     branches: [main]
+  release:
+    types: [published, edited, deleted]
   workflow_dispatch:
+    inputs:
+      site_only:
+        description: Redeploy the site without building or releasing anything
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -22,7 +35,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  refresh:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Redeploy the site from the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          gh workflow run release-and-site.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" \
+            -f site_only=true
+
   release:
+    if: github.event_name != 'release' && !inputs.site_only
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -74,6 +102,10 @@ jobs:
 
   site:
     needs: release
+    # After the release job, or in its place on a site-only run - never after a failed build.
+    if: >-
+      ${{ github.event_name != 'release' && !cancelled() &&
+      (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
