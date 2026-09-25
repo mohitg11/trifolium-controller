@@ -47,10 +47,10 @@ const BUILD = {
   repoUrl: process.env.TRIFOLIUM_REPO_URL ?? "https://github.com/davidpyo/trifolium-controller",
 };
 
-// Vite's watcher only covers this root, so an edit inside a board folder reaches the dev server
+// Vite's watcher only covers this root, so an edit to a board or a blaster reaches the dev server
 // not at all. A full reload rather than an update: the sheets come in through an eager glob at
 // module scope, which produces no HMR of its own.
-const OUTSIDE_ROOT = ["../../boards"];
+const OUTSIDE_ROOT = ["../../boards", "../../blasters"];
 
 const watchOutsideRoot = (): Plugin => ({
   name: "watch-outside-root",
@@ -76,10 +76,10 @@ export default defineConfig({
     watchOutsideRoot(),
   ],
   server: {
-    // Every board lives in trifolium/boards/<id>/ - its wiring and its two drawings - outside
-    // this root and imported so the build inlines them, because a folder of JSON/SVG beside the
-    // HTML would not survive file://. A build resolves them regardless; the dev server refuses to
-    // serve outside the root without this.
+    // The boards (trifolium/boards/<id>/, each its wiring and two drawings) and the blasters
+    // (trifolium/blasters/) live outside this root, imported so the build inlines them, because a
+    // folder of JSON/SVG beside the HTML would not survive file://. A build resolves them
+    // regardless; the dev server refuses to serve outside the root without this.
     fs: { allow: [here, ...OUTSIDE_ROOT.map((dir) => resolve(here, dir))] },
   },
   build: {

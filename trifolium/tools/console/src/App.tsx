@@ -24,6 +24,7 @@ import { walk, type BootStatus, type Schema, type SchemaNode } from "./schema/ty
 import { resolveVisibility } from "./schema/visibility";
 import { configFrom, SerialTransport, TIMEOUT_SCHEMA_MS, type LogLine } from "./serial/transport";
 import { bundleFilename, buildBundle, checkBundle, diffKeys, downloadJson } from "./config/bundle";
+import { blasterLoads, schemaMismatch, type Blaster } from "./config/blasters";
 import { LOG_LINE_CAP } from "./rpm/parse";
 import { applyLayout } from "./ui/applyLayout";
 import { PresetApplyDialog } from "./ui/PresetApplyDialog";
@@ -132,6 +133,11 @@ export function App() {
   const [pendingPreset, setPendingPreset] = React.useState<Preset | null>(null);
   /** The picker, opened deliberately on a device that already has a wiring. */
   const [presetsOpen, setPresetsOpen] = React.useState(false);
+  /**
+   * The blaster config a device is being set up with. Keeps the picker up across the restarts that
+   * takes, during which the device reports no wiring and then, briefly, no connection at all.
+   */
+  const [settingUp, setSettingUp] = React.useState<Blaster | null>(null);
   /** The connected device's DUMP_BOOT, for the faults it recorded. Null while offline. */
   const [boot, setBoot] = React.useState<BootStatus | null>(null);
   /** A reset the user picked, held until they type its word. Null when no dialog is open. */
@@ -322,6 +328,56 @@ export function App() {
     } finally {
       setBusy(false);
       setPendingPreset(null);
+    }
+  };
+
+  /**
+   * Sets a device with no wiring up as a board with a blaster's config: its device settings, then
+   * every profile slot, each sent whole as a Full Backup's would be.
+   *
+   * Refused outright for a config or a board written for another schema. A load the device refuses
+   * stops the rest, and the re-read then shows what the device holds.
+   */
+  const applyBlaster = async (board: Preset, blaster: Blaster) => {
+    const configMismatch = schemaMismatch(blaster.bundle, schema);
+    const mismatch = configMismatch
+      ? `The ${blaster.name} config ${configMismatch}.`
+      : board.schemaVersion !== schema.deviceSchemaVersion
+        ? `The ${board.name} preset was written for device schema v${board.schemaVersion}, and ` +
+          `this firmware speaks v${schema.deviceSchemaVersion}.`
+        : null;
+    if (mismatch) {
+      note("err", `${mismatch} Not loading it - use a console built with this firmware's release.`);
+      return;
+    }
+    const label = `${blaster.name} on ${board.name}`;
+    setSettingUp(blaster);
+    setBusy(true);
+    try {
+      for (const { command, payload } of blasterLoads(blaster.bundle, board, schema)) {
+        const step =
+          command === "LOAD_DEVICE"
+            ? "the device settings"
+            : `profile slot ${Number(command.split(" ")[1]) + 1}`;
+        const ack = await transport.load(command, payload);
+        if (!ack?.ok) {
+          note("err", `Setting up as ${label} stopped at ${step}; the log says why.`);
+          await readSchemaAndValues();
+          return;
+        }
+        if (ack.rebooting && !((await transport.reopenAfterReboot()) && (await transport.waitReady()))) {
+          note(
+            "err",
+            `The device restarted after ${step} and did not come back. Reconnect when it has ` +
+              "restarted, then check its settings.",
+          );
+          return;
+        }
+      }
+      if (await readSchemaAndValues()) note("ok", `Set up as ${label}.`);
+    } finally {
+      setBusy(false);
+      setSettingUp(null);
     }
   };
 
@@ -996,7 +1052,7 @@ export function App() {
             and no bound it could show that would mean anything. The picker replaces it. Opened by
             hand on a wired device, it sits above the form rather than replacing it, because there
             the form is still the thing being used. */}
-        {(showPicker || presetsOpen) && (
+        {(showPicker || presetsOpen || settingUp) && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <PresetPicker
               busy={busy}
@@ -1005,9 +1061,14 @@ export function App() {
               onApply={(preset) =>
                 showPicker ? void applyPreset(preset) : setPendingPreset(preset)
               }
+              onApplyBlaster={
+                showPicker || settingUp
+                  ? (board, blaster) => void applyBlaster(board, blaster)
+                  : undefined
+              }
               onCustom={() => void startCustomWiring()}
             />
-            {!showPicker && (
+            {!showPicker && !settingUp && (
               <Box sx={{ mt: 1 }}>
                 <Button size="small" disabled={busy} onClick={() => setPresetsOpen(false)}>
                   Cancel
@@ -1017,7 +1078,7 @@ export function App() {
           </Paper>
         )}
 
-        {!showPicker && (
+        {!showPicker && !settingUp && (
           <Paper variant="outlined">
             <Tabs value={tab} onChange={(_, v: TabId) => setTab(v)} variant="scrollable">
               <Tab value="profile" label="Profile" />

@@ -24,7 +24,7 @@ import {
   webUsbSupported,
   type FlashProgress,
 } from "../flash/flash";
-import { formatSize, parseUf2, type FlashImage } from "../flash/uf2";
+import { formatSize, parseUf2, writesSettings, type FlashImage } from "../flash/uf2";
 import { BUILD } from "../build";
 import { fetchRelease, fetchReleaseList, type FirmwareRelease } from "../firmware/releases";
 import type { LogKind } from "../serial/transport";
@@ -282,10 +282,14 @@ export function FlashDialog(props: FlashDialogProps) {
             <>
               {/* Not "this erases your config": the wiring and profiles live in LittleFS above
                   the firmware, so an ordinary image does not reach them. What does reach them is a
-                  full-chip erase image, and a firmware whose schema refuses the stored shape. */}
+                  full-chip erase image, a firmware whose schema refuses the stored shape, and a
+                  factory image, which carries a settings area of its own and says so here. */}
               <Alert severity="warning" sx={{ py: 0.5 }}>
-                This replaces the firmware. Wiring, tuning and profiles are kept. Take a full
-                backup first.
+                {image && writesSettings(image)
+                  ? "This image carries its own config: flashing it replaces the wiring, tuning " +
+                    "and profiles on this blaster. Take a full backup first."
+                  : "This replaces the firmware. Wiring, tuning and profiles are kept. Take a " +
+                    "full backup first."}
               </Alert>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <Button
