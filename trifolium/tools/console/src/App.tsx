@@ -48,6 +48,7 @@ import { WiringWarnings } from "./ui/WiringWarnings";
 import { WiringDiagram } from "./ui/WiringDiagram";
 import { WiringRules } from "./ui/wiringRules";
 import { WiringTable } from "./ui/WiringTable";
+import { ConsoleFooter } from "./ui/ConsoleFooter";
 import { Fieldset, Section, type Payloads } from "./ui/Section";
 import { countFields, deriveSections, pruneToStore, type Store } from "./ui/sections";
 import { Splash } from "./ui/Splash";
@@ -1208,6 +1209,7 @@ function DirtyContainer({
       {/* xl rather than lg so the header's action column and the log beside it both have room. */}
       <Container maxWidth="xl" sx={{ py: 2 }}>
         {children}
+        <ConsoleFooter />
       </Container>
     </DirtyKeys.Provider>
   );
