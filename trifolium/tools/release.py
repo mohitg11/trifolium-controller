@@ -64,6 +64,10 @@ SCHEMA_CAPTURE = os.path.join(ROOT, "tools", "console", "src", "fixtures", "sche
 MKLITTLEFS = os.path.join(os.path.expanduser("~"), ".platformio", "packages",
                           "tool-mklittlefs-rp2040-earlephilhower",
                           "mklittlefs.exe" if os.name == "nt" else "mklittlefs")
+# The platform installs mklittlefs only for a filesystem build, so a machine that has never made one
+# lacks it. This is the range the pinned platform's platform.json gives it; a new platform pin may
+# move it.
+MKLITTLEFS_SPEC = "earlephilhower/tool-mklittlefs-rp2040-earlephilhower@~5.100300.0"
 
 BUILD_ENV = "pico"
 BUNDLE_KIND = "trifolium-config"
@@ -240,8 +244,22 @@ def factory_name(version, blaster_path, board):
     return f"trifolium-{version}-{blaster.strip('-') or 'blaster'}-{board}.uf2"
 
 
+def ensure_mklittlefs():
+    """Installs mklittlefs if it is not there yet. False if it still is not."""
+    if os.path.isfile(MKLITTLEFS):
+        return True
+    print(f"    installing {MKLITTLEFS_SPEC} ...")
+    proc = run([find_pio(), "pkg", "install", "--global", "--tool", MKLITTLEFS_SPEC])
+    if proc.returncode != 0 or not os.path.isfile(MKLITTLEFS):
+        print((proc.stdout or "") + (proc.stderr or ""))
+        return False
+    return True
+
+
 def settings_image(files, size):
     """A LittleFS image of `size` bytes holding `files`, made as the platform's buildfs makes one."""
+    if not ensure_mklittlefs():
+        return None
     with tempfile.TemporaryDirectory() as work:
         os.mkdir(os.path.join(work, "data"))
         for filename, content in files.items():
