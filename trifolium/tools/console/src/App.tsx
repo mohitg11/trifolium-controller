@@ -252,19 +252,21 @@ export function App() {
    * only refreshing values.
    */
   const readSchemaAndValues = async (): Promise<boolean> => {
-    const next = await transport.request<Schema>("DUMP_SCHEMA", TIMEOUT_SCHEMA_MS);
+    const next = await transport.requestWhole<Schema>("DUMP_SCHEMA", TIMEOUT_SCHEMA_MS);
     if (!next || next.cmd !== "DUMP_SCHEMA") {
       note(
         "err",
-        "No schema from this firmware - it predates DUMP_SCHEMA. Use the Raw JSON tab; the form would show limits that may not match this device.",
+        "No usable schema from the device - the log says why. Reconnect to try again. Firmware " +
+          "that predates DUMP_SCHEMA never answers it: use the Raw JSON tab there, since the form " +
+          "would show limits that may not match the device.",
       );
       return false;
     }
 
-    const dev = await transport.request<unknown>("DUMP_DEVICE");
+    const dev = await transport.requestWhole<unknown>("DUMP_DEVICE");
     const loaded: unknown[] = [];
     for (let i = 0; i < next.profileCount; i++) {
-      loaded.push(configFrom((await transport.request<unknown>(`DUMP_PROFILE ${i}`)) ?? {}));
+      loaded.push(configFrom((await transport.requestWhole<unknown>(`DUMP_PROFILE ${i}`)) ?? {}));
     }
 
     // Cheap, and the only way to learn what this boot discarded: the faults print before a host
