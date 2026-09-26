@@ -740,7 +740,8 @@ def test_the_footer_names_the_build_and_offers_the_offline_copy(page, serve):
 
 
 def open_panel(page, served):
-    page.goto(f"http://127.0.0.1:{served.http}/")
+    # Not the default wait for "load", which includes the 1 MB console in the iframe beside it.
+    page.goto(f"http://127.0.0.1:{served.http}/", wait_until="domcontentloaded")
     expect(page.get_by_text(re.compile(r"^Running · up"))).to_be_visible(timeout=REBOOT_MS)
     return page
 

@@ -3,7 +3,8 @@
 // The console then runs its WebUSB polyfill. Behaves the way WebUSB does where the polyfill or the
 // console can tell the difference - open() fails while the device is re-enumerating, a reboot loses
 // the USBDevice and a new one takes its place, close() aborts pending transfers, and transfers
-// complete in the order they were queued.
+// complete in the order they were queued. Closing leaves the device on the bus, so the socket stays
+// up and a reboot loses this USBDevice however late the page next opens it.
 //
 // window.__simUsb.pickerCancels = true makes requestDevice() reject as a dismissed picker does.
 // window.__simUsb.granted = true is a browser that already allowed the device on an earlier visit.
@@ -37,7 +38,6 @@
       this.configurations = [configuration()];
       this.configuration = null;
       this.opened = false;
-      this.used = false;
       this.gone = false;
       this.ws = null;
       this.received = [];
@@ -47,27 +47,24 @@
     async open() {
       if (this.gone) throw lost();
       if (this.opened) return;
+      if (this.ws) {
+        this.opened = true; // closed by the page, still on the bus
+        return;
+      }
       const ws = new WebSocket(this.url);
       ws.binaryType = "arraybuffer";
       await new Promise((resolve, reject) => {
         ws.onopen = resolve;
-        ws.onerror = () => {
-          // Refused while the blaster enumerates, so it has left the bus since this object last
-          // opened - even if the page had closed it first and never saw the drop.
-          if (this.used) this.lose();
-          reject(this.used ? lost() : new DOMException("Failed to open the device.", "NetworkError"));
-        };
+        ws.onerror = () => reject(new DOMException("Failed to open the device.", "NetworkError"));
       });
       this.ws = ws;
       this.opened = true;
-      this.used = true;
       ws.onmessage = (e) => {
+        if (!this.opened) return;
         this.received.push(new Uint8Array(e.data));
         this.deliver();
       };
-      ws.onclose = () => {
-        if (this.ws === ws) this.lose(); // the page did not close it: the device left the bus
-      };
+      ws.onclose = () => this.lose(); // only the device leaving the bus closes it
     }
 
     lose() {
@@ -81,15 +78,12 @@
 
     async close() {
       if (!this.opened) return;
-      const ws = this.ws;
-      this.ws = null;
       this.opened = false;
       this.configuration = null;
       for (const { reject } of this.waiting.splice(0)) {
         reject(new DOMException("The transfer was cancelled.", "AbortError"));
       }
       this.received = [];
-      if (ws && ws.readyState <= WebSocket.OPEN) ws.close();
     }
 
     async selectConfiguration() {
@@ -123,6 +117,7 @@
 
     async transferOut(endpointNumber, data) {
       if (this.gone || !this.ws || this.ws.readyState !== WebSocket.OPEN) throw lost();
+      if (!this.opened) throw closed();
       this.ws.send(data);
       return { status: "ok", bytesWritten: data.byteLength };
     }

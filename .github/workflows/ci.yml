@@ -192,7 +192,12 @@ jobs:
               print("::error::The suite stopped before any test ran - see its log")
           for case in ET.parse("junit.xml").iter("testcase") if os.path.exists("junit.xml") else []:
               for bad in case.findall("failure") + case.findall("error"):
-                  text = ((bad.get("message") or "") + "\n" + (bad.text or "")).strip()
-                  text = re.sub(r"(?:\x1b|#x1B)\[[0-9;]*m", "", text)  # pytest's colours
+                  # The failing line, the error's opening lines and where it was raised - not a
+                  # browser test's page dump, which is most of the rest.
+                  lines = re.sub(r"(?:\x1b|#x1B)\[[0-9;]*m", "", bad.text or "").splitlines()
+                  text = "\n".join([bad.get("message") or ""]
+                                   + [l for l in lines if l.startswith(">")]
+                                   + [l for l in lines if l.startswith("E ")][:40]
+                                   + [l for l in lines if re.match(r"\S+\.py:\d+:", l)][-3:])
                   title = f"{case.get('classname')}.{case.get('name')}"
-                  print(f"::error title={escape(title, True)}::{escape(text[-4000:])}")
+                  print(f"::error title={escape(title, True)}::{escape(text[:6000])}")
