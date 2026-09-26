@@ -50,15 +50,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: actions/cache@v6
+      # Restored here and saved as soon as it is filled, so a failing check does not cost the next
+      # run the downloads: a plain actions/cache only saves when the whole job passes.
+      - uses: actions/cache/restore@v6
+        id: platformio
         with:
           path: ~/.platformio
           key: platformio-${{ runner.os }}-${{ hashFiles('trifolium/platformio.ini') }}
 
+      # The simulator's packages too, which check_deps.py holds to their pins alongside pico's.
       - name: Build the firmware
         run: |
           pip install platformio==6.2.0
           pio run -e pico
+          pio pkg install -e sim
+
+      - if: steps.platformio.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.platformio
+          key: ${{ steps.platformio.outputs.cache-primary-key }}
 
       - name: Checkers
         run: |
@@ -100,13 +111,15 @@ jobs:
           cache: npm
           cache-dependency-path: trifolium/tools/console/package-lock.json
 
-      - uses: actions/cache@v6
+      # Both caches are saved as soon as they are filled, as in the firmware job.
+      - uses: actions/cache/restore@v6
+        id: platformio
         with:
           path: ~/.platformio
           key: platformio-${{ runner.os }}-${{ hashFiles('trifolium/platformio.ini') }}
 
       # The winlibs build the simulator is developed with, pinned by hash.
-      - uses: actions/cache@v6
+      - uses: actions/cache/restore@v6
         id: mingw
         with:
           path: C:\winlibs
@@ -125,6 +138,12 @@ jobs:
           }
           7z x winlibs.7z -oC:\winlibs | Out-Null
 
+      - if: steps.mingw.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: C:\winlibs
+          key: ${{ steps.mingw.outputs.cache-primary-key }}
+
       - name: Put MinGW first on PATH
         shell: pwsh
         run: |
@@ -136,7 +155,14 @@ jobs:
           python -m playwright install chromium
           cd trifolium
           pio pkg install -e pico
+          pio pkg install -e sim
           gcc --version
+
+      - if: steps.platformio.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.platformio
+          key: ${{ steps.platformio.outputs.cache-primary-key }}
 
       - name: Build the console the browser tests load
         working-directory: trifolium/tools/console
@@ -146,4 +172,28 @@ jobs:
 
       - name: The suite
         working-directory: trifolium/tests
-        run: python -m pytest -n auto -ra
+        run: python -m pytest -n auto -ra --junitxml=junit.xml
+
+      # Each failure as an annotation: on the run's page, and readable through the checks API
+      # without signing in, where the log is not.
+      - name: Annotate the failures
+        if: failure()
+        working-directory: trifolium/tests
+        shell: python
+        run: |
+          import os
+          import re
+          import xml.etree.ElementTree as ET
+
+          def escape(text, prop=False):
+              text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              return text.replace(":", "%3A").replace(",", "%2C") if prop else text
+
+          if not os.path.exists("junit.xml"):
+              print("::error::The suite stopped before any test ran - see its log")
+          for case in ET.parse("junit.xml").iter("testcase") if os.path.exists("junit.xml") else []:
+              for bad in case.findall("failure") + case.findall("error"):
+                  text = ((bad.get("message") or "") + "\n" + (bad.text or "")).strip()
+                  text = re.sub(r"(?:\x1b|#x1B)\[[0-9;]*m", "", text)  # pytest's colours
+                  title = f"{case.get('classname')}.{case.get('name')}"
+                  print(f"::error title={escape(title, True)}::{escape(text[-4000:])}")
