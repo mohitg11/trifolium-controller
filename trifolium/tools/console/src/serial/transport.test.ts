@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configFrom, isReply, rebootAnnouncement, repliesTo } from "./transport";
+import { askUntilWhole, configFrom, isReply, rebootAnnouncement, repliesTo } from "./transport";
 import deviceJson from "../fixtures/device.json";
 import profile0 from "../fixtures/profile0.json";
 
@@ -86,5 +86,37 @@ describe("configFrom", () => {
   it("passes a non-object through rather than throwing", () => {
     expect(configFrom(null)).toBe(null);
     expect(configFrom(undefined)).toBe(undefined);
+  });
+});
+
+describe("askUntilWhole", () => {
+  /** Answers with each line in turn, counting how often it was asked. */
+  const answers = (...lines: (string | null)[]) => {
+    const asked = { count: 0 };
+    return { asked, ask: async () => lines[Math.min(asked.count++, lines.length - 1)] };
+  };
+
+  it("asks again when a reply arrives garbled, and takes the whole one", async () => {
+    // What a verbose boot did to a reply: another core's log line spliced into it.
+    const { asked, ask } = answers('{"cmd":"DUMP_SCHEMA","tr1006 [INFO] Booting', '{"cmd":"DUMP_SCHEMA"}');
+    const garbled: boolean[] = [];
+    const reply = await askUntilWhole<{ cmd: string }>(ask, (_, last) => garbled.push(last));
+    expect(reply?.cmd).toBe("DUMP_SCHEMA");
+    expect(asked.count).toBe(2);
+    expect(garbled).toEqual([false]);
+  });
+
+  it("gives up after three garbled replies", async () => {
+    const { asked, ask } = answers("{broken");
+    const garbled: boolean[] = [];
+    expect(await askUntilWhole(ask, (_, last) => garbled.push(last))).toBeNull();
+    expect(asked.count).toBe(3);
+    expect(garbled).toEqual([false, false, true]);
+  });
+
+  it("takes silence as final rather than waiting again", async () => {
+    const { asked, ask } = answers(null);
+    expect(await askUntilWhole(ask, () => {})).toBeNull();
+    expect(asked.count).toBe(1);
   });
 });

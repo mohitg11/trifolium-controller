@@ -88,6 +88,32 @@ export const rebootAnnouncement = (line: string): string | null => {
   }
 };
 
+const WHOLE_ATTEMPTS = 3;
+
+/**
+ * Asks until the answer parses, up to three times.
+ *
+ * A reply can arrive garbled on firmware that lets its other core's log lines land inside one - a
+ * verbose boot logs for seconds after the port is back - and asking again does not repeat that.
+ * Silence is final: firmware that does not know the command never answers, and asking again would
+ * only wait again.
+ */
+export async function askUntilWhole<T>(
+  ask: () => Promise<string | null>,
+  onGarbled: (error: Error, last: boolean) => void,
+): Promise<T | null> {
+  for (let attempt = 1; attempt <= WHOLE_ATTEMPTS; attempt++) {
+    const line = await ask();
+    if (line === null) return null;
+    try {
+      return JSON.parse(line) as T;
+    } catch (e) {
+      onGarbled(e as Error, attempt === WHOLE_ATTEMPTS);
+    }
+  }
+  return null;
+}
+
 /** The reply framing, which every dump carries and no store holds. */
 const FRAMING_KEYS = ["cmd", "index"] as const;
 
@@ -411,6 +437,23 @@ export class SerialTransport {
       this.log("err", `Reply to ${command} is not valid JSON: ${(e as Error).message}`);
       return null;
     }
+  }
+
+  /** request(), asked again while the reply comes back garbled - see askUntilWhole(). */
+  async requestWhole<T>(command: string, timeoutMs = TIMEOUT_SHORT_MS): Promise<T | null> {
+    return askUntilWhole<T>(
+      async () => {
+        await this.sendLine(command);
+        const line = await this.waitForLine(repliesTo(command), timeoutMs);
+        if (line === null) this.log("err", `No reply to ${command} within ${timeoutMs} ms.`);
+        return line;
+      },
+      (e, last) =>
+        this.log(
+          "err",
+          `Reply to ${command} is not valid JSON: ${e.message}` + (last ? "" : " - asking again."),
+        ),
+    );
   }
 
   /**
