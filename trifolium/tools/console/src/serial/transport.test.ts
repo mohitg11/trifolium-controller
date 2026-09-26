@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  SerialTransport,
   askUntilWhole,
   blasterPorts,
   configFrom,
   isReply,
   rebootAnnouncement,
   repliesTo,
+  serialApi,
 } from "./transport";
+import { serial as usbSerial } from "../vendor/web-serial-polyfill/dist/serial.js";
 import deviceJson from "../fixtures/device.json";
 import profile0 from "../fixtures/profile0.json";
 
@@ -144,5 +147,43 @@ describe("blasterPorts", () => {
     const a = port({ usbVendorId: 0x2e8a, usbProductId: 0x000a });
     const b = port({ usbVendorId: 0x2e8a, usbProductId: 0x000a });
     expect(blasterPorts([a, b])).toEqual([a, b]);
+  });
+});
+
+describe("serialApi", () => {
+  const DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0";
+  const ANDROID = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/140.0.0.0 Mobile";
+  const native = { requestPort: async () => null, getPorts: async () => [] };
+  const usb = {};
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("takes Web Serial on a desktop browser that also has WebUSB", () => {
+    vi.stubGlobal("navigator", { userAgent: DESKTOP, serial: native, usb });
+    expect(serialApi()).toBe(native);
+    expect(SerialTransport.supported).toBe(true);
+  });
+
+  it("takes the WebUSB polyfill where there is no Web Serial", () => {
+    vi.stubGlobal("navigator", { userAgent: DESKTOP, usb });
+    expect(serialApi()).toBe(usbSerial);
+  });
+
+  it("takes the WebUSB polyfill on Android even when Web Serial exists", () => {
+    vi.stubGlobal("navigator", { userAgent: ANDROID, serial: native, usb });
+    expect(serialApi()).toBe(usbSerial);
+  });
+
+  it("falls back to Android's Web Serial when there is no WebUSB", () => {
+    vi.stubGlobal("navigator", { userAgent: ANDROID, serial: native });
+    expect(serialApi()).toBe(native);
+  });
+
+  it("reports unsupported with neither", () => {
+    vi.stubGlobal("navigator", { userAgent: DESKTOP });
+    expect(serialApi()).toBeNull();
+    expect(SerialTransport.supported).toBe(false);
   });
 });

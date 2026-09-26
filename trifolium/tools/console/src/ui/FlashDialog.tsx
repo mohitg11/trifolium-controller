@@ -274,7 +274,7 @@ export function FlashDialog(props: FlashDialogProps) {
           <DropLabel over={over} label="Drop a .uf2 here" />
           {!supported && (
             <Alert severity="error" sx={{ py: 0.5 }}>
-              This browser has no WebUSB. Use Chrome or Edge on desktop.
+              This browser has no WebUSB. Use Chrome or Edge on a computer, or Chrome on Android.
             </Alert>
           )}
 

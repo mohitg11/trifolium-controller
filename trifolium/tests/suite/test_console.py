@@ -34,6 +34,7 @@ import build_site  # noqa: E402 - the site's own list entries, so the console is
 
 CONSOLE = PROJECT / "tools" / "console" / "dist" / "index.html"
 SHIM = (SIM / "trifolium_sim" / "webserial_shim.js").read_text(encoding="utf-8")
+USB_SHIM = (SIM / "trifolium_sim" / "webusb_shim.js").read_text(encoding="utf-8")
 REBOOT_MS = 15000  # a reboot, the ESC arming after it, and the console's reconnect
 
 
@@ -121,8 +122,8 @@ def serve():
         served.close()
 
 
-def open_console(page, served):
-    page.add_init_script(f"window.__SIM_SERIAL_URL = 'ws://127.0.0.1:{served.ws}';\n{SHIM}")
+def open_console(page, served, shim=SHIM):
+    page.add_init_script(f"window.__SIM_SERIAL_URL = 'ws://127.0.0.1:{served.ws}';\n{shim}")
     page.goto(CONSOLE.as_uri())
     return page
 
@@ -283,6 +284,33 @@ def test_a_blaster_the_browser_already_allowed_connects_without_the_picker(page,
     open_console(page, served)
     # A picker would be dismissed, so connecting at all proves it never opened.
     page.evaluate("window.__simSerial.granted = true; window.__simSerial.pickerCancels = true")
+    connect(page)
+    expect(page.get_by_text("Connected to the blaster this browser already allowed.")).to_be_visible()
+
+
+def test_without_web_serial_the_console_goes_over_webusb_and_follows_the_device_through_a_reboot(
+        page, serve):
+    served = serve()
+    connect(open_console(page, served, USB_SHIM))
+    page.get_by_role("button", name="Rename this blaster").click()
+    name = page.get_by_role("textbox").first
+    name.fill("phone")
+    name.press("Enter")
+
+    choose(page, "Write to Device", "Device Config (1)")
+    expect(page.get_by_text("Reconnected (device re-enumerated).")).to_be_visible(timeout=REBOOT_MS)
+    assert served.settings()["blasterName"] == "phone"
+    expect(page.get_by_text("phone", exact=True)).to_be_visible()
+
+
+def test_over_webusb_disconnect_releases_the_device_and_the_allowed_one_reopens_without_a_picker(
+        page, serve):
+    served = serve()
+    connect(open_console(page, served, USB_SHIM))
+    page.get_by_role("button", name="Disconnect", exact=True).click()
+    page.wait_for_function("!window.__simUsb.device.opened", timeout=5000)
+
+    page.evaluate("window.__simUsb.pickerCancels = true")
     connect(page)
     expect(page.get_by_text("Connected to the blaster this browser already allowed.")).to_be_visible()
 

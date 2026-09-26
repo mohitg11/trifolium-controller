@@ -9,6 +9,8 @@
 // Every reply carries a `cmd` naming the command it answers, and a slot where there is one, so
 // replies are matched on that rather than on shape - see repliesTo().
 
+import { serial as usbSerial } from "../vendor/web-serial-polyfill/dist/serial.js";
+
 export type LogKind = "out" | "in" | "ok" | "err";
 
 export interface LogLine {
@@ -38,11 +40,31 @@ const BAUD = 115200;
  */
 const BLASTER_USB = { usbVendorId: 0x2e8a, usbProductId: 0x000a };
 
+/** What the transport uses of a port, which the WebUSB polyfill's ports provide too. */
+type Port = Pick<SerialPort, "readable" | "writable" | "open" | "close" | "getInfo">;
+
+export interface SerialApi {
+  requestPort(): Promise<Port>;
+  getPorts(): Promise<Port[]>;
+}
+
+/**
+ * Web Serial, or the same API over WebUSB. Android's Web Serial reaches USB on only a few devices,
+ * so Android takes WebUSB even beside it; elsewhere native wins, since on Windows the OS serial
+ * driver owns the CDC interface and WebUSB cannot claim it.
+ */
+export function serialApi(): SerialApi | null {
+  if (typeof navigator === "undefined") return null;
+  const native = "serial" in navigator ? navigator.serial : null;
+  if (navigator.usb && (native === null || /Android/i.test(navigator.userAgent))) return usbSerial;
+  return native;
+}
+
 /**
  * The ports that could be a blaster. The browser's allowed list holds whatever was ever picked on
  * this origin - a Bluetooth serial link, a debug probe - and none of those can be one.
  */
-export function blasterPorts(ports: SerialPort[]): SerialPort[] {
+export function blasterPorts(ports: Port[]): Port[] {
   return ports.filter((port) => {
     const info = port.getInfo();
     return (
@@ -174,7 +196,7 @@ export interface TransportEvents {
 }
 
 export class SerialTransport {
-  private port: SerialPort | null = null;
+  private port: Port | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private reader: ReadableStreamDefaultReader<string> | null = null;
   /** Resolves once the pipe to the text decoder tears down and releases port.readable. */
@@ -182,12 +204,12 @@ export class SerialTransport {
   private listeners: Listener[] = [];
   private disconnecting = false;
   /** Kept across a reboot the device performed itself, so reopenAfterReboot() has a port to retry. */
-  private rebootedPort: SerialPort | null = null;
+  private rebootedPort: Port | null = null;
 
   constructor(private events: TransportEvents = {}) {}
 
   static get supported(): boolean {
-    return typeof navigator !== "undefined" && "serial" in navigator;
+    return serialApi() !== null;
   }
 
   get connected(): boolean {
@@ -208,13 +230,18 @@ export class SerialTransport {
    * both go to the picker. `choose` goes there regardless, for a blaster this browser has not seen.
    */
   async connect(choose = false): Promise<boolean> {
-    if (!SerialTransport.supported) {
-      this.log("err", "Web Serial is unavailable. Use Chrome or Edge on desktop.");
+    const api = serialApi();
+    if (!api) {
+      this.log(
+        "err",
+        "This browser has neither Web Serial nor WebUSB. Use Chrome or Edge on a computer, or Chrome"
+          + " on Android.",
+      );
       return false;
     }
-    const allowed = choose ? null : await this.onlyAllowedPort();
+    const allowed = choose ? null : await this.onlyAllowedPort(api);
     try {
-      this.port = allowed ?? (await navigator.serial.requestPort());
+      this.port = allowed ?? (await api.requestPort());
       await this.port.open({ baudRate: BAUD });
 
       this.attach(this.port);
@@ -242,10 +269,10 @@ export class SerialTransport {
    * console never having tried. The permission belongs to the origin, port number included, so a
    * blaster allowed on the published site or on another local port counts for nothing here.
    */
-  private async onlyAllowedPort(): Promise<SerialPort | null> {
-    let ports: SerialPort[];
+  private async onlyAllowedPort(api: SerialApi): Promise<Port | null> {
+    let ports: Port[];
     try {
-      ports = blasterPorts(await navigator.serial.getPorts());
+      ports = blasterPorts(await api.getPorts());
     } catch {
       return null; // getPorts() can reject in odd embedding contexts; the picker still works there
     }
@@ -261,7 +288,7 @@ export class SerialTransport {
   }
 
   /** Wires reader/writer onto an opened port. Shared so the reopen path cannot drift from connect. */
-  private attach(port: SerialPort): void {
+  private attach(port: Port): void {
     this.port = port;
     const decoder = new TextDecoderStream();
     // TextDecoderStream types its writable as WritableStream<BufferSource> while port.readable
@@ -276,7 +303,7 @@ export class SerialTransport {
   }
 
   /** Same physical device, by USB identity. getInfo() is all Web Serial exposes to match on. */
-  private static sameDevice(a: SerialPort, b: SerialPort): boolean {
+  private static sameDevice(a: Port, b: Port): boolean {
     const x = a.getInfo();
     const y = b.getInfo();
     return (
@@ -295,10 +322,10 @@ export class SerialTransport {
    * device rather than per handle, so the replacement needs no fresh user gesture - it just has to
    * be found, which is what getPorts() is for.
    */
-  private async reconnectCandidates(remembered: SerialPort): Promise<SerialPort[]> {
+  private async reconnectCandidates(remembered: Port): Promise<Port[]> {
     const out = [remembered];
     try {
-      for (const port of await navigator.serial.getPorts()) {
+      for (const port of (await serialApi()?.getPorts()) ?? []) {
         if (port !== remembered && SerialTransport.sameDevice(port, remembered)) out.push(port);
       }
     } catch {
@@ -366,11 +393,13 @@ export class SerialTransport {
       try {
         await this.writer?.close();
       } catch {
-        try {
-          this.writer?.releaseLock();
-        } catch {
-          /* ignore */
-        }
+        /* errored by the device going away */
+      }
+      // Released on success too: the polyfill's close() aborts its writable, which fails while locked.
+      try {
+        this.writer?.releaseLock();
+      } catch {
+        /* ignore */
       }
       try {
         await this.port?.close();

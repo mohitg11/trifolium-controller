@@ -292,7 +292,7 @@ export function TopBar(props: TopBarProps) {
                 title={
                   supported
                     ? "Opens the blaster this browser already allowed, when it is the only one plugged in. Otherwise asks which."
-                    : "Web Serial needs Chrome or Edge on desktop"
+                    : "Needs Chrome or Edge on a computer, or Chrome on Android"
                 }
               >
                 <span style={{ display: "flex", flex: 1 }}>

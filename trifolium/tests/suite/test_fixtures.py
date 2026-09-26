@@ -1,7 +1,7 @@
 """The console's offline fixtures, tools/console/src/fixtures/, are this firmware's own dumps of the
-configs they hold. The console renders them with no device connected, and check_bundle.py,
-check_migration.py and check_visibility.py read the schema, so a stale one is wrong in several places
-at once. After a schema change, run with TRIFOLIUM_UPDATE_FIXTURES=1 set and review the diff.
+configs they hold. The console renders them with no device connected, and check_bundle.py and
+check_visibility.py read the schema, so a stale one is wrong in several places at once. After a
+schema change, run with TRIFOLIUM_UPDATE_FIXTURES=1 set and review the diff.
 """
 
 import json

@@ -9,7 +9,6 @@ Everything that checks the firmware and the console, as opposed to operating a b
 | `suite/` | The pytest suite against the simulator, the web console in a browser included. `golden/` holds its OLED images and `fixtures/` the stepping table the console's `grid.test.ts` shares. |
 | `bench/` | What only hardware can answer: `bench_acceptance.py`, walked once per release candidate, on `bench_harness.py`. |
 | `checks/` | Static checks of the source and the checked-in data - `check_*.py`, each with `--self-test`. |
-| `migration_corpus/` | Every on-disk config shape the firmware still promises to load. See its README. |
 
 ## Running it
 
@@ -28,9 +27,15 @@ python -m pytest --no-build ...           # use the simulator as built
   tests.
 
 `suite/test_factory_build.py` also builds `[env:pico]`, once, through `tools/release.py --board
---blaster`, and unpacks the image's settings area with that package's `mklittlefs`. Its tests share
-one worker (`xdist_group`, with `--dist loadgroup` in `pytest.ini`), so the image is built once and
-never read while another build writes it.
+--blaster`, and unpacks the image's settings area with that package's `mklittlefs`, which
+`release.py` installs if it is missing. Its tests share one worker (`xdist_group`, with
+`--dist loadgroup` in `pytest.ini`), so the image is built once and never read while another build
+writes it.
+
+**CI** (`.github/workflows/ci.yml`) runs the whole suite on every pull request, on a Windows runner
+with the same winlibs MinGW, pinned by hash: the simulator counts on a 32-bit `long` and a static
+libstdc++, which 64-bit Linux would not give it. About 9 minutes, 6 of them the suite. Each failed
+test becomes an error annotation on the run.
 
 The build is `pio run -e sim`, to `.pio/build/sim/trifolium-sim.exe`. `trifolium-sim --self-test`
 checks the fakes against the parts they stand in for; `suite/test_self.py` runs it.
@@ -95,7 +100,9 @@ dumps. Review the diff before keeping it.
 `suite/test_console.py` opens the console as built, `tools/console/dist/index.html`, in headless Chromium
 against a blaster from `serve.py`. `sim/trifolium_sim/webserial_shim.js` stands in for
 `navigator.serial` over the server's WebSocket, so the console's own transport does the reads,
-writes, reboots and reconnects. The tests use the console as last built: after changing it,
+writes, reboots and reconnects. `webusb_shim.js` is the same bridge as Chrome on Android sees it -
+no `navigator.serial`, one USB serial device on `navigator.usb` - for the console's WebUSB path.
+The tests use the console as last built: after changing it,
 `npm run build` in `tools/console/` first. `--headed` shows the browser.
 
 ## Tools against the simulator

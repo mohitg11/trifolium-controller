@@ -334,10 +334,8 @@ def step9(link):
 def step10(link):
     run_tool(10, "the simulator suite", [sys.executable, "-m", "pytest", "-n", "auto", "-q"],
              cwd=os.path.join(ROOT, "tests"))
-    for tool in ("check_bundle.py", "check_migration.py"):
-        path = os.path.join(ROOT, "tests", "checks", tool)
-        if os.path.exists(path):
-            run_tool(10, tool, [sys.executable, path])
+    run_tool(10, "check_bundle.py",
+             [sys.executable, os.path.join(ROOT, "tests", "checks", "check_bundle.py")])
 
 
 # ---------------------------------------------------------------------------------------------
