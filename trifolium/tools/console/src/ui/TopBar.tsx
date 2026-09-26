@@ -8,6 +8,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { compareVersions } from "../firmware/releases";
 import type { LogLine } from "../serial/transport";
 import { dropOutlineSx, useFileDrop } from "./FileDrop";
 import { LogView } from "./LogView";
@@ -28,6 +29,12 @@ export type LoadIntent = "bundle" | "device" | "profile";
 
 /** Shared by the hidden picker in App and the header's drop target. */
 export const CONFIG_ACCEPT = [".json", "application/json"] as const;
+
+/**
+ * The first firmware whose log lines wait for a reply to finish instead of landing inside it. Before
+ * it, verbose logging could garble a DUMP_* reply or an ack; from it, verbose is only extra output.
+ */
+const FW_LOGS_WAIT_FOR_REPLIES = "2.1.1";
 
 export interface TopBarProps {
   lines: LogLine[];
@@ -189,6 +196,11 @@ export function TopBar(props: TopBarProps) {
   } = props;
 
   const totalDirty = deviceDirty + profileDirty;
+  // The connected firmware's version when verbose is on and can still garble replies, else null.
+  const garblingFw =
+    verbose && identity && compareVersions(identity.fw, FW_LOGS_WAIT_FOR_REPLIES) < 0
+      ? identity.fw
+      : null;
 
   const { over, dropProps } = useFileDrop({
     accept: CONFIG_ACCEPT,
@@ -497,8 +509,8 @@ export function TopBar(props: TopBarProps) {
           <Tooltip
             title={
               verbose
-                ? "Turn the device's warn/info output back off. It floods the port from the 1 kHz control loop."
-                : "Turn on the device's warn/info output. Not needed for an RPM capture; reboots the blaster either way."
+                ? "Turn the device's warn/info log back off. Reboots the blaster."
+                : "Turn on the device's warn/info log: switch presses, state changes, shots and overrunning loops. Not needed for an RPM capture; reboots the blaster."
             }
           >
             <span>
@@ -518,11 +530,12 @@ export function TopBar(props: TopBarProps) {
         </Stack>
       </Stack>
 
-      {verbose && (
+      {garblingFw && (
         <Box sx={{ mt: 0.5 }}>
           <Typography variant="caption" color="warning.main">
-            Verbose device logging is on — the blaster is printing from its control loop. Turn it off
-            before reading the schema or writing settings.
+            With verbose logging on, firmware {garblingFw} can garble its replies, so a read or write
+            may fail or show stale values. Update to {FW_LOGS_WAIT_FOR_REPLIES} or later to fix it for
+            good, or turn verbose off first.
           </Typography>
         </Box>
       )}
