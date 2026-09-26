@@ -32,6 +32,25 @@ export interface CommandAck {
 
 const BAUD = 115200;
 
+/**
+ * The USB identity every Trifolium enumerates with: arduino-pico's for the Raspberry Pi Pico
+ * (`board = rpipico`), and one image runs on every board.
+ */
+const BLASTER_USB = { usbVendorId: 0x2e8a, usbProductId: 0x000a };
+
+/**
+ * The ports that could be a blaster. The browser's allowed list holds whatever was ever picked on
+ * this origin - a Bluetooth serial link, a debug probe - and none of those can be one.
+ */
+export function blasterPorts(ports: SerialPort[]): SerialPort[] {
+  return ports.filter((port) => {
+    const info = port.getInfo();
+    return (
+      info.usbVendorId === BLASTER_USB.usbVendorId && info.usbProductId === BLASTER_USB.usbProductId
+    );
+  });
+}
+
 /** Small replies land in well under a second; DUMP_SCHEMA is ~27KB on one line. */
 export const TIMEOUT_SHORT_MS = 3000;
 export const TIMEOUT_SCHEMA_MS = 15000;
@@ -179,25 +198,66 @@ export class SerialTransport {
     this.events.onLog?.({ kind, text, at: Date.now() });
   }
 
-  async connect(): Promise<boolean> {
+  /**
+   * Opens a blaster, asking the browser's picker only when it has to.
+   *
+   * The browser keeps the permission a picker grants, per device, and getPorts() hands those
+   * devices back. So when exactly one allowed device is plugged in, that is the one to open and the
+   * picker would only be a click to confirm it. With none there is nothing to open without asking,
+   * and with several getInfo() cannot tell blasters apart - they share a USB vendor and product - so
+   * both go to the picker. `choose` goes there regardless, for a blaster this browser has not seen.
+   */
+  async connect(choose = false): Promise<boolean> {
     if (!SerialTransport.supported) {
       this.log("err", "Web Serial is unavailable. Use Chrome or Edge on desktop.");
       return false;
     }
+    const allowed = choose ? null : await this.onlyAllowedPort();
     try {
-      this.port = await navigator.serial.requestPort();
+      this.port = allowed ?? (await navigator.serial.requestPort());
       await this.port.open({ baudRate: BAUD });
 
       this.attach(this.port);
 
-      this.log("ok", "Connected.");
+      this.log("ok", allowed ? "Connected to the blaster this browser already allowed." : "Connected.");
       void this.readLoop(); // runs until the reader errors or is cancelled
       return true;
     } catch (e) {
-      this.log("err", `Connect failed: ${(e as Error).message}`);
+      // Without the picker, a port held by another tab or program is the likely failure, and
+      // nothing on screen says which device was tried.
+      const hint = allowed
+        ? " If another tab or program has the port open, close it. For a different blaster, use"
+          + " Choose Device."
+        : "";
+      this.log("err", `Connect failed: ${(e as Error).message}${hint}`);
       this.port = null;
       return false;
     }
+  }
+
+  /**
+   * The one plugged-in blaster this page may open without asking, or null for none or several.
+   *
+   * Says why when it is null, since the picker opening is otherwise indistinguishable from the
+   * console never having tried. The permission belongs to the origin, port number included, so a
+   * blaster allowed on the published site or on another local port counts for nothing here.
+   */
+  private async onlyAllowedPort(): Promise<SerialPort | null> {
+    let ports: SerialPort[];
+    try {
+      ports = blasterPorts(await navigator.serial.getPorts());
+    } catch {
+      return null; // getPorts() can reject in odd embedding contexts; the picker still works there
+    }
+    if (ports.length === 1) return ports[0];
+    const where = typeof location !== "undefined" ? location.origin : "this page";
+    this.log(
+      "out",
+      ports.length === 0
+        ? `No plugged-in blaster is allowed on ${where} yet, so the browser asks.`
+        : `${ports.length} plugged-in blasters are allowed on ${where}, so the browser asks which.`,
+    );
+    return null;
   }
 
   /** Wires reader/writer onto an opened port. Shared so the reopen path cannot drift from connect. */

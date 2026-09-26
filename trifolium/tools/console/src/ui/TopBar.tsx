@@ -68,7 +68,8 @@ export interface TopBarProps {
   verbose: boolean;
   onToggleVerbose: () => void;
 
-  onConnect: () => void;
+  /** `choose` shows the browser's picker even when one allowed blaster is plugged in. */
+  onConnect: (choose: boolean) => void;
   onDisconnect: () => void;
   onReadAll: () => void;
   onReboot: (mode: "normal" | "bootloader" | "passthrough") => void;
@@ -286,20 +287,42 @@ export function TopBar(props: TopBarProps) {
               Disconnect
             </Button>
           ) : (
-            <Tooltip title={supported ? "" : "Web Serial needs Chrome or Edge on desktop"}>
-              <span>
-                <Button
-                  size="small"
-                  variant="contained"
-                  fullWidth
-                  sx={actionSx}
-                  disabled={!supported}
-                  onClick={onConnect}
-                >
-                  Connect
-                </Button>
-              </span>
-            </Tooltip>
+            <Stack direction="row" spacing={0.5}>
+              <Tooltip
+                title={
+                  supported
+                    ? "Opens the blaster this browser already allowed, when it is the only one plugged in. Otherwise asks which."
+                    : "Web Serial needs Chrome or Edge on desktop"
+                }
+              >
+                <span style={{ display: "flex", flex: 1 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    fullWidth
+                    sx={actionSx}
+                    disabled={!supported}
+                    onClick={() => onConnect(false)}
+                  >
+                    Connect
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title="Pick from the browser's list: a blaster this browser hasn't used yet, or one of several plugged in">
+                <span style={{ display: "flex", flex: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    fullWidth
+                    sx={actionSx}
+                    disabled={!supported}
+                    onClick={() => onConnect(true)}
+                  >
+                    Choose Device
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
           )}
 
           {/*

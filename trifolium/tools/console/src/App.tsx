@@ -293,8 +293,8 @@ export function App() {
    * connect looked fine for so long and then reported "No reply to DUMP_SCHEMA within 15000 ms" on
    * the bench. Ten cheap DUMP_BOOT retries cost nothing against a device that is already up.
    */
-  const connect = async () => {
-    if (!(await transport.connect())) return;
+  const connect = async (choose: boolean) => {
+    if (!(await transport.connect(choose))) return;
     if (!(await transport.waitReady())) return;
     await readSchemaAndValues();
   };
@@ -916,7 +916,7 @@ export function App() {
               },
             ])
           }
-          onConnect={() => void connect()}
+          onConnect={(choose) => void connect(choose)}
           onDisconnect={() => void transport.disconnect()}
           onReadAll={() => void readSchemaAndValues()}
           onReboot={(mode) => void reboot(mode)}

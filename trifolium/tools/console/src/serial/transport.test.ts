@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { askUntilWhole, configFrom, isReply, rebootAnnouncement, repliesTo } from "./transport";
+import {
+  askUntilWhole,
+  blasterPorts,
+  configFrom,
+  isReply,
+  rebootAnnouncement,
+  repliesTo,
+} from "./transport";
 import deviceJson from "../fixtures/device.json";
 import profile0 from "../fixtures/profile0.json";
 
@@ -118,5 +125,24 @@ describe("askUntilWhole", () => {
     const { asked, ask } = answers(null);
     expect(await askUntilWhole(ask, () => {})).toBeNull();
     expect(asked.count).toBe(1);
+  });
+});
+
+describe("blasterPorts", () => {
+  const port = (info: SerialPortInfo) => ({ getInfo: () => info }) as unknown as SerialPort;
+
+  it("keeps a blaster and drops what else the browser has allowed", () => {
+    // The bench's allowed list: a Bluetooth serial link, which reports no USB ids, and a Pico debug
+    // probe beside the blaster.
+    const blaster = port({ usbVendorId: 0x2e8a, usbProductId: 0x000a });
+    const bluetooth = port({});
+    const probe = port({ usbVendorId: 0x2e8a, usbProductId: 0x000c });
+    expect(blasterPorts([bluetooth, blaster, probe])).toEqual([blaster]);
+  });
+
+  it("keeps every blaster, which connect() then asks between", () => {
+    const a = port({ usbVendorId: 0x2e8a, usbProductId: 0x000a });
+    const b = port({ usbVendorId: 0x2e8a, usbProductId: 0x000a });
+    expect(blasterPorts([a, b])).toEqual([a, b]);
   });
 });
