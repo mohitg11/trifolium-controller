@@ -1,5 +1,7 @@
 # Publishes the firmware and the console from main.
 #
+# tests:   ci.yml, first. Nothing below runs unless it passes, except a site-only run, which builds
+#          nothing new.
 # release: when trifolium/src/global.h declares a version with no release yet, builds it with
 #          tools/release.py in this clean checkout and makes a release of the .uf2. Firmware only -
 #          the console is not a release file.
@@ -49,7 +51,14 @@ jobs:
           gh workflow run release-and-site.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" \
             -f site_only=true
 
+  tests:
+    if: github.event_name != 'release' && !inputs.site_only
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   release:
+    needs: tests
     if: github.event_name != 'release' && !inputs.site_only
     runs-on: ubuntu-latest
     permissions:
@@ -101,10 +110,13 @@ jobs:
             --title "$TAG" --generate-notes trifolium/release/*.uf2
 
   site:
-    needs: release
-    # After the release job, or in its place on a site-only run - never after a failed build.
+    needs: [tests, release]
+    # After the tests and the release job, or in their place on a site-only run - never after a
+    # failed test or build. A release skipped because the tests failed reads as skipped too, hence
+    # the tests' own result.
     if: >-
       ${{ github.event_name != 'release' && !cancelled() &&
+      (needs.tests.result == 'success' || needs.tests.result == 'skipped') &&
       (needs.release.result == 'success' || needs.release.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:

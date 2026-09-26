@@ -1,0 +1,104 @@
+{
+    "motors": [
+        false,
+        true,
+        false,
+        true
+    ],
+    "variableFPS": true,
+    "revRPMset": [
+        [
+            0,
+            35000,
+            0,
+            35000
+        ],
+        [
+            0,
+            35000,
+            0,
+            35000
+        ],
+        [
+            0,
+            35000,
+            0,
+            35000
+        ]
+    ],
+    "dwellTimeSet_ms": [
+        0,
+        0,
+        0
+    ],
+    "idleTimeSet_ms": [
+        5000,
+        5000,
+        5000
+    ],
+    "spindownSpeed": 100,
+    "idleRPM": [
+        1000,
+        1000,
+        1000,
+        1000
+    ],
+    "flywheelControl": 0,
+    "fullThrottleRpmTolerance": 5000,
+    "firingRPMTolerance": 500,
+    "minFiringRPM": 10000,
+    "EMAFilter": 2,
+    "iThreshold": 50,
+    "throttleCap": 300,
+    "KP": [
+        0.2,
+        0.2,
+        0.2,
+        0.2
+    ],
+    "KI": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+    ],
+    "KD": [
+        0,
+        0,
+        0,
+        0
+    ],
+    "motorPolesDiv2": [
+        7,
+        7,
+        7,
+        7
+    ],
+    "motorKv": [
+        3200,
+        3200,
+        3200,
+        3200
+    ],
+    "burstLengthSet": [
+        100,
+        1,
+        1
+    ],
+    "burstModeSet": [
+        0,
+        2,
+        1
+    ],
+    "binaryTriggerTimeout_ms": 2000,
+    "selectFireType": 1,
+    "defaultFiringMode": 1,
+    "batteryType": 1,
+    "lowVoltageCutoff_mv": 10000,
+    "voltageCalibrationFactor": 1,
+    "solenoidExtendTimeHigh_ms": 25,
+    "solenoidExtendTimeHighVoltage_mv": 16800,
+    "solenoidExtendTimeLow_ms": 40,
+    "solenoidExtendTimeLowVoltage_mv": 11800,
+    "solenoidRetractTime_ms": 35
+}
