@@ -184,4 +184,5 @@ inline const DeviceSettings kDefaultDeviceSettings = {
     .selectFireType = SWITCH_SELECT_FIRE,
     .variableFPS = true,
     .defaultProfileIndex = 1, // Medium - used when no select-switch position is active
+    .switchPositionProfile = {0, 1, 2, NO_PROFILE, NO_PROFILE, NO_PROFILE, NO_PROFILE},
 };

@@ -51,11 +51,12 @@ export function withSlotNames(
 }
 
 /**
- * A fire-mode picker's node with one option per mode in `names`, the list as edited here. The
- * firmware lists the modes it held when it last described itself, so a mode added since would have
- * nothing to pick until written. The options below `lo` 0 - a position's "Default" - stay first.
+ * An index picker's node - a fire mode or a profile slot - with one option per entry in `names`,
+ * the list as edited here. The firmware lists what it held when it last described itself, so a mode
+ * added or a profile renamed since would not show until written. The options below `lo` 0 - a
+ * position's "Default" - stay first.
  */
-export function withModeOptions(node: SchemaNode, names: readonly string[]): SchemaNode {
+export function withIndexOptions(node: SchemaNode, names: readonly string[]): SchemaNode {
   const lead = (node.options ?? []).slice(0, Math.max(0, -(node.lo ?? 0)));
   return { ...node, options: [...lead, ...names], hi: names.length - 1 };
 }

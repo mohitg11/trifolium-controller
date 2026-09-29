@@ -33,6 +33,10 @@ enum selectFireType_t
     ENCODER_SELECT_FIRE, // the wired select lines are the bits of a position number
 };
 
+// Every position a 3-line encoder can reach except none-grounded, which the per-position tables
+// leave to their default. A switch uses the first three.
+static constexpr uint8_t SELECTOR_POSITIONS = 7;
+
 enum flywheelControlType_t
 {
     // OPEN_LOOP_CONTROL,

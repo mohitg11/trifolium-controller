@@ -226,6 +226,9 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["selectFireType"] = enumIdOf(settings.selectFireType, kSelectFireTypeIds, kSelectFireTypeIdCount);
     doc["variableFPS"] = settings.variableFPS;
     doc["defaultProfileIndex"] = settings.defaultProfileIndex;
+    JsonArray positionProfile = doc["switchPositionProfile"].to<JsonArray>();
+    for (uint8_t i = 0; i < SELECTOR_POSITIONS; i++)
+        positionProfile.add(settings.switchPositionProfile[i]);
 }
 
 void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
@@ -401,6 +404,12 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
                                       kSelectFireTypeIdCount, out.selectFireType);
     out.variableFPS = doc["variableFPS"] | out.variableFPS;
     out.defaultProfileIndex = doc["defaultProfileIndex"] | out.defaultProfileIndex;
+    JsonArrayConst positionProfile = doc["switchPositionProfile"];
+    if (!positionProfile.isNull())
+    {
+        for (uint8_t i = 0; i < SELECTOR_POSITIONS && i < positionProfile.size(); i++)
+            out.switchPositionProfile[i] = positionProfile[i] | out.switchPositionProfile[i];
+    }
 }
 
 LoadResult loadDeviceSettings(DeviceSettings& out)

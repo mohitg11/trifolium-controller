@@ -46,9 +46,11 @@ export const SETTING_HELP: Record<string, string> = {
   "device:rampupTimeout_ms":
     "If the flywheels are not at speed this long after a rev starts, the rev gives up and drops back to idle. Plasma is exempt.",
   "device:variableFPS":
-    "With a switch-type select fire, the switch position at power-on picks the profile, so one switch sets the FPS.",
+    "With a switch or encoder select fire, the selector's position at power-on picks the profile, so one switch sets the FPS.",
   "device:defaultProfileIndex":
-    "The profile used at power-on when Variable FPS is on and no select-switch position reads as pressed.",
+    "The profile used at power-on when Variable FPS is on and no select line is grounded, and by any position left on Default.",
+  "device:switchPositionProfile[*]":
+    "The profile this select-switch or encoder position loads at power-on, when Variable FPS is on. Default uses the Default Profile.",
   "profile:name": "A name for this profile, shown wherever the blaster lists its profiles.",
 
   // Motors and PID

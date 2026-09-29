@@ -1281,6 +1281,7 @@ export function App() {
                         schema={view}
                         device={device}
                         profile={payloads.profile}
+                        profileNames={profiles.map((_, i) => profileName(i))}
                         onEdit={onEdit}
                       />
                     </Fieldset>

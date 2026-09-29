@@ -578,9 +578,9 @@ MenuItem* activeFireModeTargetDpsTarget()
     return &fireModeTargetDpsItem;
 }
 
-// Whether this boot's selector can reach the position at `index` in switchPositionAssignment: a
+// Whether this boot's selector can reach the position at `index` in the per-position tables: a
 // switch has one line per position, an encoder one position per combination of its lines.
-static bool selectorReaches(uint8_t index)
+bool selectorReaches(uint8_t index)
 {
     if (deviceSettings.selectFireType != ENCODER_SELECT_FIRE)
         return index < 3 && pinDefined(selectPins[index]);

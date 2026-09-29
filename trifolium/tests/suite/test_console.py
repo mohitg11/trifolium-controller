@@ -902,8 +902,22 @@ def test_an_encoder_select_fire_shows_each_combination_of_its_lines_in_place_of_
     rows = encoder.locator("tbody tr")
     expect(rows.locator("td:nth-child(1)")).to_have_text(["0", "1", "2", "3"])
     expect(rows.locator("td:nth-child(2)")).to_have_text(["none", "GP9", "GP10", "GP9 + GP10"])
-    # A picker per position, position 0's being the Default Mode.
-    expect(rows.get_by_role("combobox")).to_have_count(4)
+    # A mode and a profile picker per position, position 0's being the Default Mode and Profile.
+    expect(rows.locator("td:nth-child(3)").get_by_role("combobox")).to_have_count(4)
+    expect(rows.locator("td:nth-child(4)").get_by_role("combobox")).to_have_count(4)
+
+
+def test_a_profile_picked_for_an_encoder_position_is_written_to_the_device(page, serve):
+    served = serve(device={"selectFireType": "encoder"})
+    connect(open_console(page, served))
+    page.get_by_role("tab", name="Profile").click()
+    position3 = page.get_by_role("group", name="Selector Encoder").locator("tbody tr").nth(3)
+    position3.locator("td:nth-child(4)").get_by_role("combobox").click()
+    page.get_by_role("option", name="Low", exact=True).click()
+
+    with rebooting(page):
+        choose(page, "Write to Device", "Device Config (1)")
+    assert served.settings()["switchPositionProfile"][:3] == [0, 1, 0]
 
 
 def test_a_button_select_fire_makes_select_1_a_push_button_that_steps_the_mode(page, serve):

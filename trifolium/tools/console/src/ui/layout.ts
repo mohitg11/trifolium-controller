@@ -31,10 +31,16 @@ export const RENDERED_ELSEWHERE: Record<string, string> = {
   // The boot gate rather than a pin, and the picker and the custom path are the two things
   // that set it. Rendered in the Wiring table's own footer, where what it arms is visible.
   "device:wiringConfigured": "the Wiring table footer",
-  // Only read when variableFPS is on and select-fire is SWITCH - selectShotProfileAtBoot()
-  // reaches it from no other branch - which is exactly when the Selector Switch editor renders.
-  // On the Device tab it showed unconditionally and did nothing most of the time.
-  "device:defaultProfileIndex": "the Selector Switch editor, on the none row",
+  // Only read when variableFPS is on and select-fire is a switch or encoder -
+  // selectShotProfileAtBoot() reaches them from no other branch - which is exactly when those
+  // editors render. On the Device tab they showed unconditionally and did nothing most of the time.
+  "device:defaultProfileIndex": "the selector editor, on the none row",
+  ...Object.fromEntries(
+    Array.from({ length: 7 }, (_, i) => [
+      `device:switchPositionProfile[${i}]`,
+      "the selector editor, in its Profile at boot column",
+    ]),
+  ),
   "profile:name": "the profile bar, beside the slot picker",
   // The RPM editor renders these in both modes - four per-motor rows, or one row per stage that
   // writes every enabled motor in it. The firmware's own stage rows are `derived` and keyless, so

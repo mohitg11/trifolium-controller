@@ -53,6 +53,7 @@ extern bool escDashboardOpen;                  // lets Rev spin flywheels while 
 
 bool pinDefined(uint8_t pin);
 bool isPusherEscChannel(uint8_t motorIndex);
+bool selectorReaches(uint8_t index); // menuSelectFire.cpp
 
 // Shared list-layout constants - menuCore.cpp's renderList() and menuTextEditor.cpp's
 // Save/Cancel screen both use these to keep the same list-row look.

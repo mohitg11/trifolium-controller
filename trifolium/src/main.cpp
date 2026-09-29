@@ -1751,10 +1751,17 @@ void resetFWControl()
 
 uint8_t selectShotProfileAtBoot()
 {
-    if (deviceSettings.selectFireType == SWITCH_SELECT_FIRE)
+    if (deviceSettings.selectFireType == SWITCH_SELECT_FIRE ||
+        deviceSettings.selectFireType == ENCODER_SELECT_FIRE)
     {
-        const int8_t position = switchPosition();
-        return position >= 0 ? (uint8_t)position : deviceSettings.defaultProfileIndex;
+        const int8_t position = deviceSettings.selectFireType == ENCODER_SELECT_FIRE
+                                    ? encoderReading() - 1
+                                    : switchPosition();
+        const int8_t slot = position >= 0 ? deviceSettings.switchPositionProfile[position]
+                                          : NO_PROFILE;
+        return slot >= 0 && slot < ProfileStore::MAX_PROFILE_COUNT
+                   ? (uint8_t)slot
+                   : deviceSettings.defaultProfileIndex;
     }
     else if (deviceSettings.selectFireType == BUTTON_SELECT_FIRE)
     {

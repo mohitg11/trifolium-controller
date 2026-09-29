@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include "types.h"
 
+static constexpr int8_t NO_PROFILE = -1;
+
 struct MotorConfig
 {
     bool enabled;
@@ -120,4 +122,7 @@ struct DeviceSettings
     selectFireType_t selectFireType;
     bool variableFPS;
     uint8_t defaultProfileIndex; // used at boot when no select-switch position is active
+    // With variableFPS, the slot each selector position boots. NO_PROFILE boots
+    // defaultProfileIndex, as no position does.
+    int8_t switchPositionProfile[SELECTOR_POSITIONS];
 };
