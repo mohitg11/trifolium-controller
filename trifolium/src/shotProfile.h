@@ -7,6 +7,10 @@ static constexpr uint8_t MAX_FIRE_MODES = 10;
 
 static constexpr int8_t NO_FIRE_MODE = -1;
 
+// Every position a 3-line encoder can reach except none-grounded, which uses defaultFiringMode.
+// A switch uses the first three.
+static constexpr uint8_t SELECTOR_POSITIONS = 7;
+
 struct FireModeConfig
 {
     String name; // empty = no override, show effectiveName() instead
@@ -48,5 +52,5 @@ struct ShotProfile
     uint8_t activeModeCount; // how many leading fireModes[] slots are in use, 1-MAX_FIRE_MODES
     uint8_t defaultFiringMode; // index into fireModes[0, activeModeCount)
 
-    int8_t switchPositionAssignment[3];
+    int8_t switchPositionAssignment[SELECTOR_POSITIONS];
 };

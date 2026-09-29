@@ -50,6 +50,16 @@ export function withSlotNames(
   return named ? { ...node, options } : node;
 }
 
+/**
+ * A fire-mode picker's node with one option per mode in `names`, the list as edited here. The
+ * firmware lists the modes it held when it last described itself, so a mode added since would have
+ * nothing to pick until written. The options below `lo` 0 - a position's "Default" - stay first.
+ */
+export function withModeOptions(node: SchemaNode, names: readonly string[]): SchemaNode {
+  const lead = (node.options ?? []).slice(0, Math.max(0, -(node.lo ?? 0)));
+  return { ...node, options: [...lead, ...names], hi: names.length - 1 };
+}
+
 /** What to write for the option at `index` - an id for an id-valued node, a number otherwise. */
 export function optionValueAt(node: SchemaNode, index: number): string | number {
   const ids = node.optionValues;

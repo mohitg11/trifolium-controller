@@ -131,8 +131,9 @@ With `serve.py` running, **http://127.0.0.1:5336/** is a blaster to use by hand:
 - **Switches:** a button for each switch the wiring defines. Trigger, rev, menu and cycle are held
   while pressed, or with Space, R, M and C; the rest latch. With a switch-type select fire the select
   pins are one switch instead: a position for each wired pin and one grounding none, which sits
-  between them on a two-pin switch as on a centre-off toggle. With a button-type one, Select 1 is a
-  push button, left out when it shares the menu button's pin.
+  between them on a two-pin switch as on a centre-off toggle. With an encoder-type one they are a row
+  of numbered positions, one for each combination of the wired lines. With a button-type one,
+  Select 1 is a push button, left out when it shares the menu button's pin.
 - **Readouts:** each wheel's RPM against its target, with its ESC while that is starting or
   unpowered, the pusher's shots this boot, the solenoid - lit while powered, with the last pulse's
   length - and the rev state.

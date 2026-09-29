@@ -141,7 +141,8 @@ void toJson(const ShotProfile& settings, JsonDocument& doc)
         mode["includeInCycle"] = settings.fireModes[i].includeInCycle;
     }
     doc["defaultFiringMode"] = settings.defaultFiringMode;
-    writeArray(doc, "switchPositionAssignment", settings.switchPositionAssignment, 3);
+    writeArray(doc, "switchPositionAssignment", settings.switchPositionAssignment,
+               SELECTOR_POSITIONS);
 }
 
 void fromJson(JsonDocument& doc, ShotProfile& out, Source source, uint8_t slot)
@@ -200,7 +201,7 @@ void fromJson(JsonDocument& doc, ShotProfile& out, Source source, uint8_t slot)
         }
     }
     out.defaultFiringMode = doc["defaultFiringMode"] | out.defaultFiringMode;
-    readArray(doc, "switchPositionAssignment", out.switchPositionAssignment, 3);
+    readArray(doc, "switchPositionAssignment", out.switchPositionAssignment, SELECTOR_POSITIONS);
 }
 
 bool loadProfile(uint8_t index, ShotProfile& out)

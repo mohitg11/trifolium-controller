@@ -29,7 +29,8 @@ enum selectFireType_t
     NO_SELECT_FIRE,
     SWITCH_SELECT_FIRE,
     BUTTON_SELECT_FIRE,
-    SCREEN_SELECT_FIRE, // no hardware at all - firingMode is only ever changed via the menu
+    SCREEN_SELECT_FIRE,  // no hardware at all - firingMode is only ever changed via the menu
+    ENCODER_SELECT_FIRE, // the wired select lines are the bits of a position number
 };
 
 enum flywheelControlType_t

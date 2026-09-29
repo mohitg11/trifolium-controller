@@ -46,7 +46,7 @@ inline const ShotProfile kDefaultProfile = {
         },
     .activeModeCount = 3,
     .defaultFiringMode = 1,
-    .switchPositionAssignment = {0, 1, 2},
+    .switchPositionAssignment = {0, 1, 2, NO_FIRE_MODE, NO_FIRE_MODE, NO_FIRE_MODE, NO_FIRE_MODE},
 };
 
 inline const DeviceSettings kDefaultDeviceSettings = {

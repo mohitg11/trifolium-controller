@@ -1601,6 +1601,62 @@ bool fwControlLoop()
     return true;
 }
 
+// The lowest grounded select line, or -1 when none is.
+static int8_t switchPosition()
+{
+    for (int i = 0; i < 3; i++)
+    {
+        if (pinDefined(selectPins[i]))
+        {
+            selectSwitches[i]->update();
+            if (selectSwitches[i]->isPressed())
+                return i;
+        }
+    }
+    return -1;
+}
+
+// The wired select lines as the bits of a number, select0 the lowest, a grounded line a 1.
+static int8_t encoderReading()
+{
+    int8_t reading = 0;
+    uint8_t bit = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        if (!pinDefined(selectPins[i]))
+            continue;
+        selectSwitches[i]->update();
+        if (selectSwitches[i]->isPressed())
+            reading |= 1 << bit;
+        bit++;
+    }
+    return reading;
+}
+
+// The encoder's position as an index into switchPositionAssignment, -1 for none grounded. A turn
+// from one detent to the next passes through the numbers in between as its lines change one at a
+// time, so a new number only counts once it has held for the debounce time.
+static int8_t settledEncoderPosition()
+{
+    static bool firstRead = true;
+    static int8_t pending = -1;
+    static uint32_t pendingSince_ms = 0;
+    const int8_t position = encoderReading() - 1;
+    if (firstRead || position == activeSwitchPosition)
+    {
+        firstRead = false;
+        pending = position;
+        pendingSince_ms = time_ms;
+        return position;
+    }
+    if (position != pending)
+    {
+        pending = position;
+        pendingSince_ms = time_ms;
+    }
+    return time_ms - pendingSince_ms >= debounceTime_ms ? position : activeSwitchPosition;
+}
+
 void updateFiringMode()
 {
     if (menuIsOpen())
@@ -1612,27 +1668,18 @@ void updateFiringMode()
     {
         return;
     }
-    else if (deviceSettings.selectFireType == SWITCH_SELECT_FIRE)
+    else if (deviceSettings.selectFireType == SWITCH_SELECT_FIRE ||
+             deviceSettings.selectFireType == ENCODER_SELECT_FIRE)
     {
         int8_t previousFiringMode = firingMode;
 
-        int8_t newActivePosition = -1; // -1 = no wired pin is currently grounded
-        for (int i = 0; i < 3; i++)
-        {
-            if (pinDefined(selectPins[i]))
-            {
-                selectSwitches[i]->update();
-                if (selectSwitches[i]->isPressed())
-                {
-                    newActivePosition = i;
-                    break;
-                }
-            }
-        }
+        int8_t newActivePosition = deviceSettings.selectFireType == ENCODER_SELECT_FIRE
+                                       ? settledEncoderPosition()
+                                       : switchPosition();
 
         if (newActivePosition != activeSwitchPosition)
         {
-            // The switch itself moved (even to/from "nothing grounded") - hand authority back to
+            // The selector itself moved (even to/from "nothing grounded") - hand authority back to
             // it, discarding any menu override from before this move.
             activeSwitchPosition = newActivePosition;
             screenOverrideMode = -1;
@@ -1706,18 +1753,8 @@ uint8_t selectShotProfileAtBoot()
 {
     if (deviceSettings.selectFireType == SWITCH_SELECT_FIRE)
     {
-        for (int i = 0; i < 3; i++)
-        {
-            if (pinDefined(selectPins[i]))
-            {
-                selectSwitches[i]->update();
-                if (selectSwitches[i]->isPressed())
-                {
-                    return i;
-                }
-            }
-        }
-        return deviceSettings.defaultProfileIndex;
+        const int8_t position = switchPosition();
+        return position >= 0 ? (uint8_t)position : deviceSettings.defaultProfileIndex;
     }
     else if (deviceSettings.selectFireType == BUTTON_SELECT_FIRE)
     {

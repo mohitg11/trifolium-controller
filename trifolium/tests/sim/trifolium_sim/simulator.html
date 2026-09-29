@@ -44,15 +44,15 @@
                                                                  border-color: var(--held); }
   #switches button.held small, #switches button[aria-pressed="true"] small { color: #fff; }
   .note { color: var(--muted); margin: 0; }
-  #selector { display: flex; margin-top: 8px; }
-  #selector[hidden] { display: none; }
-  #selector button { flex: 1 1 0; min-height: 52px; border: 1px solid var(--line); margin-left: -1px;
-                     background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
-  #selector button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-  #selector button:last-child { border-radius: 0 6px 6px 0; }
-  #selector button small { display: block; color: var(--muted); font-size: 11px; }
-  #selector button[aria-checked="true"] { background: var(--held); color: #fff; border-color: var(--held); }
-  #selector button[aria-checked="true"] small { color: #fff; }
+  .positions { display: flex; margin-top: 8px; }
+  .positions[hidden] { display: none; }
+  .positions button { flex: 1 1 0; min-height: 52px; border: 1px solid var(--line); margin-left: -1px;
+                      background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
+  .positions button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+  .positions button:last-child { border-radius: 0 6px 6px 0; }
+  .positions button small { display: block; color: var(--muted); font-size: 11px; }
+  .positions button[aria-checked="true"] { background: var(--held); color: #fff; border-color: var(--held); }
+  .positions button[aria-checked="true"] small { color: #fff; }
   .wheel { display: grid; grid-template-columns: 64px 1fr 120px; gap: 8px; align-items: center; margin: 6px 0; }
   .wheel small { display: block; color: var(--muted); font-size: 11px; }
   .power { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -91,7 +91,8 @@
     <section class="card">
       <h2>Switches</h2>
       <div id="switches"></div>
-      <div id="selector" role="radiogroup" aria-label="Select switch" hidden></div>
+      <div id="selector" class="positions" role="radiogroup" aria-label="Select switch" hidden></div>
+      <div id="encoder" class="positions" role="radiogroup" aria-label="Encoder" hidden></div>
       <p class="note" id="switches-note"></p>
     </section>
     <section class="card">
@@ -171,22 +172,26 @@ function buildSwitches(settings) {
   const wired = ROLES.filter((r) => settings[r.key] !== undefined && settings[r.key] !== PIN_NOT_USED);
   // A switch-type select fire is one switch: a position per select pin, and one grounding none.
   const selector = settings.selectFireType === "switch" ? wired.filter((r) => isSelect(r.role)) : [];
+  // An encoder is one selector over all its lines: a position per combination of them.
+  const encoder = settings.selectFireType === "encoder" ? wired.filter((r) => isSelect(r.role)) : [];
   $("switches-note").textContent = !settings.wiringConfigured
     ? "No wiring. Set the board up in the console."
     : "Hold Space for the trigger, R for rev, M for the menu, C for cycle.";
   // A button-type select fire cycles modes on Select 1, a push button - unless that is the menu
   // button's pin, when the Menu button already presses it.
   const modeButton = settings.selectFireType === "button";
-  const buttons = wired.filter((r) => !selector.includes(r) &&
+  const buttons = wired.filter((r) => !selector.includes(r) && !encoder.includes(r) &&
     !(modeButton && r.role === "select0" && settings.select0Pin === settings.menuButtonPin));
   const momentary = (r) => r.momentary || (modeButton && r.role === "select0");
   // A latch left down by the last wiring, on a pin that no longer latches, lets go.
-  const latching = new Set([...buttons.filter((r) => !momentary(r)), ...selector].map((r) => r.role));
+  const latching = new Set([...buttons.filter((r) => !momentary(r)), ...selector, ...encoder]
+    .map((r) => r.role));
   for (const role of [...latched].filter((x) => !latching.has(x))) {
     latched.delete(role);
     act({ op: "release", role });
   }
   buildSelector(settings.wiringConfigured ? selector : [], settings);
+  buildEncoder(settings.wiringConfigured ? encoder : [], settings);
   if (!settings.wiringConfigured) return;
   for (const r of buttons) {
     const b = document.createElement("button");
@@ -247,6 +252,49 @@ async function moveSelector(role) {
     await act({ op: "press", role });
   }
   markSelector();
+}
+
+// The encoder's lines, lowest bit first.
+let encoderRoles = [];
+
+function encoderAt() {
+  return encoderRoles.reduce((p, role, bit) => p | (latched.has(role) ? 1 << bit : 0), 0);
+}
+
+function buildEncoder(roles, settings) {
+  const box = $("encoder");
+  box.replaceChildren();
+  box.hidden = !roles.length;
+  encoderRoles = roles.map((r) => r.role);
+  for (let position = 0; position < (roles.length ? 1 << roles.length : 0); position++) {
+    const grounded = roles.filter((_, bit) => position & (1 << bit)).map((r) => settings[r.key]);
+    const b = document.createElement("button");
+    b.setAttribute("role", "radio");
+    b.dataset.position = position;
+    b.innerHTML = `${position}<small>${grounded.length ? `GPIO ${grounded.join("+")}` : "none"}</small>`;
+    b.addEventListener("click", () => moveEncoder(position));
+    box.append(b);
+  }
+  markEncoder();
+}
+
+function markEncoder() {
+  const at = String(encoderAt());
+  for (const b of $("encoder").children) b.setAttribute("aria-checked", String(b.dataset.position === at));
+}
+
+// Break before make, as the switch above does.
+async function moveEncoder(position) {
+  const wanted = encoderRoles.filter((_, bit) => position & (1 << bit));
+  for (const role of encoderRoles.filter((r) => latched.has(r) && !wanted.includes(r))) {
+    latched.delete(role);
+    await act({ op: "release", role });
+  }
+  for (const role of wanted.filter((r) => !latched.has(r))) {
+    latched.add(role);
+    await act({ op: "press", role });
+  }
+  markEncoder();
 }
 
 function hold(button, down) {

@@ -19,11 +19,11 @@ export const SETTING_HELP: Record<string, string> = {
   "profile:fireModes[*].name":
     "Optional. Blank shows the firing mode itself, such as AUTO. Worth setting when several modes share one firing mode.",
   "profile:defaultFiringMode":
-    "The mode used when no select-switch position reads as pressed, such as a 3-way switch's middle position.",
+    "The mode used when no select line is grounded, such as a 3-way switch's middle position, and by any position left on Default.",
   "profile:switchPositionAssignment[*]":
-    "The fire mode this select-switch position chooses. Default uses the profile's Default Mode.",
+    "The fire mode this select-switch or encoder position chooses. Default uses the profile's Default Mode.",
   "device:selectFireType":
-    "How the fire mode is chosen: a switch position, a button that cycles through modes, the on-screen picker only, or not at all.",
+    "How the fire mode is chosen: a switch position, an encoder whose select lines count as a binary number, a button that cycles through modes, the on-screen picker only, or not at all.",
 
   // Flywheel and RPM
   "profile:rpmMode":

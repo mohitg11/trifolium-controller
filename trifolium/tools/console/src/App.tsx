@@ -44,7 +44,7 @@ import { RawJson } from "./ui/RawJson";
 import { ResetDialog, type ResetKind, type ResetPlan } from "./ui/ResetDialog";
 import { RpmLog } from "./ui/RpmLog";
 import { RpmStages } from "./ui/RpmStages";
-import { SelectorSwitch } from "./ui/SelectorSwitch";
+import { EncoderSelector, SelectorSwitch } from "./ui/SelectorSwitch";
 import { WiringWarnings } from "./ui/WiringWarnings";
 import { WiringDiagram } from "./ui/WiringDiagram";
 import { WiringRules } from "./ui/wiringRules";
@@ -911,6 +911,7 @@ export function App() {
    * stored value rather than inventing a second rule.
    */
   const usesSelectorSwitch = getByKey(device, SELECT_FIRE_KEY) === "switch";
+  const usesEncoder = getByKey(device, SELECT_FIRE_KEY) === "encoder";
 
   /**
    * Dirty keys as a field sees them: device keys plus this slot's profile keys, with the "slot:"
@@ -1268,6 +1269,18 @@ export function App() {
                         device={device}
                         profile={payloads.profile}
                         profileNames={profiles.map((_, i) => profileName(i))}
+                        onEdit={onEdit}
+                      />
+                    </Fieldset>
+                  )}
+
+                  {tab === "profile" && usesEncoder && (
+                    <Fieldset label="Selector Encoder">
+                      <EncoderSelector
+                        key={`encoder-${slot}`}
+                        schema={view}
+                        device={device}
+                        profile={payloads.profile}
                         onEdit={onEdit}
                       />
                     </Fieldset>

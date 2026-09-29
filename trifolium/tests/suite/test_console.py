@@ -868,6 +868,44 @@ def test_a_switch_select_fire_is_one_switch_with_a_position_per_pin_and_one_grou
     served.until(lambda: mode() == at_none)
 
 
+def test_an_encoder_select_fire_is_a_row_of_numbered_positions_one_per_combination_of_its_lines(
+        page, serve):
+    served = serve(device={"selectFireType": "encoder"})
+    open_panel(page, served)
+    positions = page.get_by_role("radiogroup", name="Encoder").get_by_role("radio")
+    expect(positions).to_have_text([re.compile(r"^0\s*none$"), re.compile(r"^1\s*GPIO 9$"),
+                                    re.compile(r"^2\s*GPIO 10$"), re.compile(r"^3\s*GPIO 9\+10$")],
+                                   timeout=REBOOT_MS)
+    expect(page.locator("#selector")).to_be_hidden()
+    expect(positions.nth(0)).to_have_attribute("aria-checked", "true")
+
+    def mode():
+        return served.bench("peek", names=["firingMode"])["values"]["firingMode"]
+
+    # The default profile: positions 1-3 are AUTO, BINARY and SEMI, and none is BINARY.
+    positions.nth(3).click()
+    expect(positions.nth(3)).to_have_attribute("aria-checked", "true")
+    served.until(lambda: mode() == 2)
+    positions.nth(1).click()
+    expect(positions.nth(3)).to_have_attribute("aria-checked", "false")
+    served.until(lambda: mode() == 0)
+    positions.nth(0).click()
+    served.until(lambda: mode() == 1)
+
+
+def test_an_encoder_select_fire_shows_each_combination_of_its_lines_in_place_of_the_switch(page, serve):
+    connect(open_console(page, serve(device={"selectFireType": "encoder"})))
+    page.get_by_role("tab", name="Profile").click()
+    encoder = page.get_by_role("group", name="Selector Encoder")
+    expect(encoder).to_be_visible()
+    expect(page.get_by_role("group", name="Selector Switch")).to_be_hidden()
+    rows = encoder.locator("tbody tr")
+    expect(rows.locator("td:nth-child(1)")).to_have_text(["0", "1", "2", "3"])
+    expect(rows.locator("td:nth-child(2)")).to_have_text(["none", "GP9", "GP10", "GP9 + GP10"])
+    # A picker per position, position 0's being the Default Mode.
+    expect(rows.get_by_role("combobox")).to_have_count(4)
+
+
 def test_a_button_select_fire_makes_select_1_a_push_button_that_steps_the_mode(page, serve):
     served = serve(device={"selectFireType": "button"})
 
