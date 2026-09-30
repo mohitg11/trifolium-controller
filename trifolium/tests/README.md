@@ -65,7 +65,9 @@ def test_a_preset_arms_an_unwired_board(blaster):
 ```
 
 - **Before boot:** `flash_preset(id, overrides)`, `flash_profile(slot, doc)`, `flash_put(path, data)`,
-  `attach_display()`, `set_pack(mv, rise_ms=)`, `wheel(i, kv=, loaded=, tauUp=, replies=, replyEvery=)`,
+  `attach_display()`, `set_pack(mv, rise_ms=)`, `pot(fraction)` (the speed pot, on whatever pin the
+  wiring gives it; the pack is read on every other ADC pin), `analog(pin, raw)`,
+  `wheel(i, kv=, loaded=, tauUp=, replies=, replyEvery=)`,
   `esc_startup(ms=, restart_ms=)`, `darts(loaded=, loss_rpm=)`, `passthrough_session(ms, restore_fails=)`, `set_noinit(...)`. A switch
   can be held through power-on, too.
 - **Running:** `boot(settle_ms)`, `power_on()`, `run_ms()`, `run_until(pred, limit_ms)`,
@@ -116,7 +118,8 @@ This keeps a blaster running in wall-clock time. Its USB serial is `socket://127
 pyserial opens with `serial.serial_for_url()`; `ws://127.0.0.1:5335` is the same serial for a browser.
 One host at a time. A reboot drops it, as re-enumeration drops the COM port, and for a moment after
 nothing can connect. Port 5334 takes one JSON request per line for the bench: `press`, `release`, `tap`,
-`pack` (with `riseMs` for a divider still charging), `panel`, `peek`, `wheels`, `extends`, `wiring`,
+`pack` (with `riseMs` for a divider still charging), `pot` (a `fraction` of its travel), `panel`,
+`peek`, `wheels`, `extends`, `wiring`,
 `power_cycle`, `power_on` (with `source` `battery` or `usb`), `state`, and `flash`, which reads a file
 off the blaster's flash. Its ESCs start up as the measured blaster's do; `--instant-escs` makes them
 answer at once, which is how the suite's own `serve.py` tests run it.
@@ -131,9 +134,11 @@ With `serve.py` running, **http://127.0.0.1:5336/** is a blaster to use by hand:
 - **Switches:** a button for each switch the wiring defines. Trigger, rev, menu and cycle are held
   while pressed, or with Space, R, M and C; the rest latch. With a switch-type select fire the select
   pins are one switch instead: a position for each wired pin and one grounding none, which sits
-  between them on a two-pin switch as on a centre-off toggle. With an encoder-type one they are a row
-  of numbered positions, one for each combination of the wired lines. With a button-type one,
-  Select 1 is a push button, left out when it shares the menu button's pin.
+  between them on a two-pin switch as on a centre-off toggle. With an encoder-type one they are a
+  knob with a detent for each combination of the wired lines; it turns one detent at a time, through
+  the positions in between, with the arrows beside it or `[` and `]`. With a button-type one,
+  Select 1 is a push button, left out when it shares the menu button's pin. A wired speed pot is a
+  slider.
 - **Readouts:** each wheel's RPM against its target, with its ESC while that is starting or
   unpowered, the pusher's shots this boot, the solenoid - lit while powered, with the last pulse's
   length - and the rev state.

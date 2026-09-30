@@ -67,12 +67,13 @@ bool outputLevel(uint8_t pin);
 // Every pinMode() call since powerOn(), on any pin, valid or not.
 uint32_t pinModeCalls();
 
-// The raw 10-bit reading analogRead() returns for the pin.
-void setAnalog(uint8_t pin, int raw);
+// The raw 10-bit reading analogRead() returns for the pin. `rises` for a divider that charges from
+// power-on, as setAnalogRise() describes; a pot or anything else reads its value at once.
+void setAnalog(uint8_t pin, int raw, bool rises = false);
 
-// Every analog reading climbing toward its setAnalog() value from power-on, first order with time
-// constant `tau_us`, `charged_us` of it already done when this boot's clock started. 0 reads the
-// value at once.
+// Every rising analog reading climbing toward its setAnalog() value from power-on, first order with
+// time constant `tau_us`, `charged_us` of it already done when this boot's clock started. 0 reads
+// the value at once.
 void setAnalogRise(uint64_t tau_us, uint64_t charged_us);
 
 // Nesting depth of noInterrupts(); 0 when interrupts are on.

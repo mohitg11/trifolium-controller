@@ -43,6 +43,13 @@ export const SETTING_HELP: Record<string, string> = {
     "How far below the target a motor may be and still count as at speed. Larger fires sooner into the spin-up.",
   "device:minFiringRPM":
     "A floor under the at-speed point, so a low target cannot let a shot go at a uselessly low RPM. 0 removes it.",
+  "device:speedPotMinRPM":
+    "Stage 1's rev RPM with the speed pot turned all the way down. Never below what Min Firing RPM lets fire.",
+  "device:speedPotMaxRPM": "Stage 1's rev RPM with the speed pot turned all the way up.",
+  "profile:speedPotStage2Ratio":
+    "With a speed pot, stage 2's rev RPM as a multiple of stage 1's: 1.2 spins stage 2 20% faster. A single-stage blaster ignores it.",
+  "device:speedPotReversed":
+    "On if the pot reads lower as it is turned up, so turning it up still means faster.",
   "device:rampupTimeout_ms":
     "If the flywheels are not at speed this long after a rev starts, the rev gives up and drops back to idle. Plasma is exempt.",
   "device:variableFPS":
@@ -119,6 +126,8 @@ export const SETTING_HELP: Record<string, string> = {
   "device:i2cSclPin":
     "The clock pin of the screen's I2C bus. SDA and SCL must be a pair the RP2040 can use together.",
   "device:batteryAdcPin": "The analog pin, GPIO 26 to 29, that reads the battery voltage divider.",
+  "device:speedPotPin":
+    "The analog pin, GPIO 26 to 29, that reads a speed pot's wiper. With one wired, the pot sets the rev RPM in place of the profile's own.",
   "device:escEnablePin":
     "A pin that switches the ESCs' power on once the blaster boots, and off if the battery drops below the cutoff. Only for boards with that circuit.",
   "device:pusherFetPin": "The pin that switches the solenoid's FET.",

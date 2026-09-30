@@ -27,6 +27,7 @@ void clearWiring(DeviceSettings& s)
     s.i2cSclPin = PIN_NOT_USED;
     s.batteryAdcPin = PIN_NOT_USED;
     s.escEnablePin = PIN_NOT_USED;
+    s.speedPotPin = PIN_NOT_USED;
     s.menuButtonPin = PIN_NOT_USED;
     s.triggerSwitchPin = PIN_NOT_USED;
     s.revSwitchPin = PIN_NOT_USED;
@@ -80,6 +81,8 @@ DeviceSettings factoryResetSettings()
     s.i2cSclPin = deviceSettings.i2cSclPin;
     s.batteryAdcPin = deviceSettings.batteryAdcPin;
     s.escEnablePin = deviceSettings.escEnablePin;
+    s.speedPotPin = deviceSettings.speedPotPin;
+    s.speedPotReversed = deviceSettings.speedPotReversed;
 
     s.menuButtonPin = deviceSettings.menuButtonPin;
     s.triggerSwitchPin = deviceSettings.triggerSwitchPin;
@@ -135,6 +138,8 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["i2cSclPin"] = settings.i2cSclPin;
     doc["batteryAdcPin"] = settings.batteryAdcPin;
     doc["escEnablePin"] = settings.escEnablePin;
+    doc["speedPotPin"] = settings.speedPotPin;
+    doc["speedPotReversed"] = settings.speedPotReversed;
 
     doc["hasDisplay"] = settings.hasDisplay;
     doc["rotateDisplay"] = settings.rotateDisplay;
@@ -207,6 +212,8 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["firingRPMTolerance"] = settings.firingRPMTolerance;
     doc["minFiringRPM"] = settings.minFiringRPM;
     doc["rampupTimeout_ms"] = settings.rampupTimeout_ms;
+    doc["speedPotMinRPM"] = settings.speedPotMinRPM;
+    doc["speedPotMaxRPM"] = settings.speedPotMaxRPM;
     doc["EMAFilter"] = settings.EMAFilter;
     doc["iThreshold"] = settings.iThreshold;
     doc["throttleCap"] = settings.throttleCap;
@@ -274,6 +281,8 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
     out.i2cSdaPin = doc["i2cSdaPin"] | out.i2cSdaPin;
     out.i2cSclPin = doc["i2cSclPin"] | out.i2cSclPin;
     out.batteryAdcPin = doc["batteryAdcPin"] | out.batteryAdcPin;
+    out.speedPotPin = doc["speedPotPin"] | out.speedPotPin;
+    out.speedPotReversed = doc["speedPotReversed"] | out.speedPotReversed;
     out.escEnablePin = doc["escEnablePin"] | out.escEnablePin;
 
     out.hasDisplay = doc["hasDisplay"] | out.hasDisplay;
@@ -378,6 +387,8 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
     out.firingRPMTolerance = doc["firingRPMTolerance"] | out.firingRPMTolerance;
     out.minFiringRPM = doc["minFiringRPM"] | out.minFiringRPM;
     out.rampupTimeout_ms = doc["rampupTimeout_ms"] | out.rampupTimeout_ms;
+    out.speedPotMinRPM = doc["speedPotMinRPM"] | out.speedPotMinRPM;
+    out.speedPotMaxRPM = doc["speedPotMaxRPM"] | out.speedPotMaxRPM;
     out.EMAFilter = doc["EMAFilter"] | out.EMAFilter;
     out.iThreshold = doc["iThreshold"] | out.iThreshold;
     out.throttleCap = doc["throttleCap"] | out.throttleCap;

@@ -868,29 +868,47 @@ def test_a_switch_select_fire_is_one_switch_with_a_position_per_pin_and_one_grou
     served.until(lambda: mode() == at_none)
 
 
-def test_an_encoder_select_fire_is_a_row_of_numbered_positions_one_per_combination_of_its_lines(
-        page, serve):
+def test_an_encoder_select_fire_is_a_knob_with_a_detent_per_combination_of_its_lines(page, serve):
     served = serve(device={"selectFireType": "encoder"})
     open_panel(page, served)
-    positions = page.get_by_role("radiogroup", name="Encoder").get_by_role("radio")
-    expect(positions).to_have_text([re.compile(r"^0\s*none$"), re.compile(r"^1\s*GPIO 9$"),
-                                    re.compile(r"^2\s*GPIO 10$"), re.compile(r"^3\s*GPIO 9\+10$")],
-                                   timeout=REBOOT_MS)
+    detents = page.get_by_role("radiogroup", name="Encoder").get_by_role("radio")
+    expect(detents).to_have_text(["0", "1", "2", "3"], timeout=REBOOT_MS)
     expect(page.locator("#selector")).to_be_hidden()
-    expect(positions.nth(0)).to_have_attribute("aria-checked", "true")
 
     def mode():
         return served.bench("peek", names=["firingMode"])["values"]["firingMode"]
 
     # The default profile: positions 1-3 are AUTO, BINARY and SEMI, and none is BINARY.
-    positions.nth(3).click()
-    expect(positions.nth(3)).to_have_attribute("aria-checked", "true")
+    detents.nth(3).click()
+    expect(detents.nth(3)).to_have_attribute("aria-checked", "true")
+    expect(page.locator("#encoder-lines")).to_have_text("Position 3: GPIO 9 + GPIO 10 grounded")
     served.until(lambda: mode() == 2)
-    positions.nth(1).click()
-    expect(positions.nth(3)).to_have_attribute("aria-checked", "false")
-    served.until(lambda: mode() == 0)
-    positions.nth(0).click()
+    page.keyboard.press("[")
+    expect(detents.nth(2)).to_have_attribute("aria-checked", "true")
     served.until(lambda: mode() == 1)
+    detents.nth(1).click()
+    served.until(lambda: mode() == 0)
+
+
+def test_with_no_speed_pot_wired_the_panel_has_no_pot_slider(page, serve):
+    open_panel(page, serve())
+    expect(page.locator("#switches button").first).to_be_visible(timeout=REBOOT_MS)
+    expect(page.locator("#pot")).to_be_hidden()
+
+
+def test_a_wired_speed_pot_is_a_slider_that_moves_the_rev_target(page, serve):
+    served = serve(device={"speedPotPin": 27})
+    open_panel(page, served)
+    pot = page.locator("#pot")
+    expect(pot).to_be_visible(timeout=REBOOT_MS)
+
+    def rev_rpm():
+        return served.bench("peek", names=["motors"])["values"]["motors"][1]["revRPM"]
+
+    served.until(lambda: rev_rpm() == 30000)  # the slider starts at full travel: Pot Max RPM
+    pot.fill("0")
+    served.until(lambda: rev_rpm() == 15000)  # Pot Min RPM
+    expect(page.locator("#pot-value")).to_have_text("0%")
 
 
 def test_an_encoder_select_fire_shows_each_combination_of_its_lines_in_place_of_the_switch(page, serve):

@@ -81,7 +81,7 @@ def solenoid(b, pin, since_us):
 def snapshot(b, since_us=0):
     """What the panel draws, in one request. `since_us` is the last one's `uptimeUs`."""
     reply = {"state": b.state, "boots": b.boot_count, "uptime_ms": b.uptime_ms,
-             "uptimeUs": b.uptime_us, "packMv": b.pack_mv}
+             "uptimeUs": b.uptime_us, "packMv": b.pack_mv, "potFraction": b.pot_fraction}
     if b.state != "running" or not b.peek("booted"):
         return reply
     panel = b.panel(pixels=True)
@@ -112,6 +112,9 @@ def control(b, req):
         return {}
     if op == "pack":
         b.set_pack(req["mv"], rise_ms=req.get("riseMs", 0))
+        return {}
+    if op == "pot":
+        b.pot(req["fraction"])
         return {}
     if op == "panel":
         panel = b.panel(pixels=req.get("pixels", False))
@@ -150,7 +153,7 @@ def control(b, req):
     raise ValueError(f"unknown op {op!r}")
 
 
-CONTROL = ("press release tap pack panel peek wheels extends wiring power_cycle power_on state "
+CONTROL = ("press release tap pack pot panel peek wheels extends wiring power_cycle power_on state "
            "flash snapshot speed").split()
 
 

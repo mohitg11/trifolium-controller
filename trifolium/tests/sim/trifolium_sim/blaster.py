@@ -133,6 +133,18 @@ class Blaster:
     def analog(self, pin, raw):
         self._set_world(("analog", pin), "analog", pin=pin, raw=raw)
 
+    def pot(self, fraction):
+        """The speed pot turned `fraction` of its travel from the grounded end, on the pin the
+        wiring gives it. Left alone, a wired pot reads 0; with none wired, it keeps its place for a
+        wiring that has one."""
+        self._set_world(("pot",), "pot", fraction=fraction)
+
+    @property
+    def pot_fraction(self):
+        """What pot() last gave, or None."""
+        entry = self._world.get(("pot",))
+        return entry[1]["fraction"] if entry else None
+
     def drive(self, pin, level):
         """Something outside the chip holding `pin` - a switch to ground is drive(pin, False)."""
         self._set_world(("pin", pin), "pin.drive", pin=pin, level=level)

@@ -71,7 +71,14 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
   { label: "Motors & PID", keys: [], absorb: ["Motors & PID"] },
   {
     label: "Flywheel / RPM",
-    keys: ["device:firingRPMTolerance", "device:minFiringRPM", "device:rampupTimeout_ms"],
+    keys: [
+      "device:firingRPMTolerance",
+      "device:minFiringRPM",
+      "device:rampupTimeout_ms",
+      "device:speedPotMinRPM",
+      "device:speedPotMaxRPM",
+      "device:speedPotReversed",
+    ],
   },
   {
     // Named keys first, then everything else the firmware groups here. These five apply whatever
@@ -172,6 +179,7 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:i2cSdaPin",
       "device:i2cSclPin",
       "device:batteryAdcPin",
+      "device:speedPotPin",
       "device:escEnablePin",
       "device:triggerSwitchNormallyClosed",
       "device:revSwitchNormallyClosed",
@@ -204,6 +212,7 @@ export const PROFILE_LAYOUT: SectionSpec[] = [
     label: "RPM & Timing",
     keys: [
       "profile:rpmMode",
+      "profile:speedPotStage2Ratio",
       "profile:dwellTime_ms",
       "profile:idleTime_ms",
       "profile:spindownSpeed",

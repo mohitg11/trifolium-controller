@@ -60,7 +60,7 @@ extern bool revSafetyLatched;
 extern bool firing;
 extern BatteryMonitor* batteryMonitor;
 extern uint8_t menuButtonPin, triggerSwitchPin, revSwitchPin, cycleSwitchPin, idleSwitchPin,
-    safetySwitchPin, ledDataPin, batteryAdcPin, escEnablePin;
+    safetySwitchPin, ledDataPin, batteryAdcPin, speedPotPin, escEnablePin;
 extern uint8_t selectPins[3];
 extern uint8_t pusherPin();
 bool menuIsOpen();
@@ -211,6 +211,8 @@ class Host
             setSwitch(req["role"] | "", req["pressed"] | false, out);
         else if (op == "analog")
             hal::setAnalog(req["pin"], req["raw"]);
+        else if (op == "pot")
+            setPot(req["fraction"] | 1.0f, out);
         else if (op == "pack")
         {
             setPack(req["mv"]);
@@ -506,13 +508,33 @@ class Host
         }
     }
 
-    // BatteryMonitor: pack = adc_mv * 11, adc_mv = raw * 3300 / 1023. On every ADC pin, because
-    // before boot nothing has read which one the wiring uses, and no other input is analog.
+    // The speed pot turned `fraction` of the way from its grounded end, on the pin the wiring gives
+    // it - the firmware's own copy once booted, the config on flash before that. With none wired
+    // nothing reads it: it keeps its place, replayed onto each boot, for a wiring that has one.
+    void setPot(float fraction, JsonObject out)
+    {
+        const uint8_t pin = wiring().speedPotPin;
+        if (pin == PIN_NOT_USED)
+        {
+            out["pin"] = nullptr;
+            return;
+        }
+        const float at = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+        hal::setAnalog(pin, (int)(at * 1023.0f + 0.5f));
+        out["pin"] = pin;
+    }
+
+    // BatteryMonitor: pack = adc_mv * 11, adc_mv = raw * 3300 / 1023. On every ADC pin but the
+    // speed pot's, because before boot nothing has read which one the wiring uses.
     void setPack(int32_t mv)
     {
         const int raw = (int)((mv / 11.0) * 1023.0 / 3300.0 + 0.5);
+        const uint8_t pot = wiring().speedPotPin;
         for (uint8_t pin = 26; pin <= 29; pin++)
-            hal::setAnalog(pin, raw);
+        {
+            if (pin != pot)
+                hal::setAnalog(pin, raw, true);
+        }
         for (SimFlywheel& w : wheels_)
         {
             w.packVoltage = mv / 1000.0f;
@@ -790,6 +812,7 @@ class Host
             v["select2"] = selectPins[2];
             v["ledData"] = ledDataPin;
             v["batteryAdc"] = batteryAdcPin;
+            v["speedPot"] = speedPotPin;
             v["escEnable"] = escEnablePin;
         }
         else if (name == "pinConflicts")

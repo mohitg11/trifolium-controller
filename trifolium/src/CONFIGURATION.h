@@ -37,6 +37,7 @@ inline const ShotProfile kDefaultProfile = {
     .spindownSpeed = 100,
     .revSafetyTimeout_ms = 0, // disabled
     .rpmMode = RPM_STAGE,
+    .speedPotStage2Ratio = 1.0f,
 
     .fireModes =
         {
@@ -60,6 +61,8 @@ inline const DeviceSettings kDefaultDeviceSettings = {
     .i2cSclPin = PIN_NOT_USED,
     .batteryAdcPin = PIN_NOT_USED,
     .escEnablePin = PIN_NOT_USED,
+    .speedPotPin = PIN_NOT_USED,
+    .speedPotReversed = false,
 
     .hasDisplay = true,
     .rotateDisplay = true,
@@ -165,6 +168,8 @@ inline const DeviceSettings kDefaultDeviceSettings = {
     .firingRPMTolerance = 500,
     .minFiringRPM = 10000,
     .rampupTimeout_ms = 500,
+    .speedPotMinRPM = 15000,
+    .speedPotMaxRPM = 30000,
     .EMAFilter = 2,
     .iThreshold = 50,
     .throttleCap = 300,

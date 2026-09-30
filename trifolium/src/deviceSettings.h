@@ -31,6 +31,8 @@ struct DeviceSettings
     uint8_t i2cSclPin;     // I2C role is fixed by pin % 4, so storing it would be a second answer.
     uint8_t batteryAdcPin; // GPIO 26-29 only; anything else folds to unused
     uint8_t escEnablePin;  // driven LOW at boot and by the low-voltage cutoff, to kill ESC power
+    uint8_t speedPotPin;   // GPIO 26-29 only; sets the rev RPM in place of the profile's own
+    bool speedPotReversed; // wired so that turning it up reads lower
 
     bool hasDisplay;
     bool rotateDisplay;
@@ -100,6 +102,8 @@ struct DeviceSettings
     int32_t firingRPMTolerance;
     int32_t minFiringRPM;
     uint32_t rampupTimeout_ms;
+    int32_t speedPotMinRPM; // stage 1's rev RPM at each end of the pot's travel
+    int32_t speedPotMaxRPM;
     uint8_t EMAFilter;
     uint16_t iThreshold;
     uint16_t throttleCap;

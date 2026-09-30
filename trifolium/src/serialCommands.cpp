@@ -31,6 +31,8 @@ extern flywheelState_t flywheelState;
 extern bool idleHoldActive;
 extern burstFireType_t burstMode;
 extern bool safetyEngaged;
+extern uint8_t speedPotPin;
+extern int32_t speedPotRpm;
 bool idleHoldWanted();
 bool menuIsOpen();
 bool revControlAllowed();
@@ -346,6 +348,11 @@ void handleSerialCommands()
         Serial.print(safetyEngaged ? "true" : "false");
         Serial.print(",\"revAllowed\":");
         Serial.print(revControlAllowed() ? "true" : "false");
+        Serial.print(",\"speedPot\":");
+        if (speedPotPin == PIN_NOT_USED)
+            Serial.print("null");
+        else
+            Serial.print(speedPotRpm);
         Serial.print(",\"motors\":[");
         for (int i = 0; i < 4; i++)
         {
@@ -353,6 +360,9 @@ void handleSerialCommands()
                 Serial.print(',');
             Serial.print("{\"enabled\":");
             Serial.print(motorsEnabled[i] ? "true" : "false");
+            // What a rev aims for, speed pot applied; targetRPM is where the wheel is headed now.
+            Serial.print(",\"revRPM\":");
+            Serial.print(motorArr[i].revRPM);
             Serial.print(",\"targetRPM\":");
             Serial.print(motorArr[i].targetRPM);
             Serial.print(",\"motorRPM\":");

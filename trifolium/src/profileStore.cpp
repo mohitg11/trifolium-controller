@@ -125,6 +125,7 @@ void toJson(const ShotProfile& settings, JsonDocument& doc)
     doc["spindownSpeed"] = settings.spindownSpeed;
     doc["revSafetyTimeout_ms"] = settings.revSafetyTimeout_ms;
     doc["rpmMode"] = enumIdOf(settings.rpmMode, kRpmModeIds, kRpmModeIdCount);
+    doc["speedPotStage2Ratio"] = settings.speedPotStage2Ratio;
 
     doc["activeModeCount"] = settings.activeModeCount;
     JsonArray fireModes = doc["fireModes"].to<JsonArray>();
@@ -171,6 +172,7 @@ void fromJson(JsonDocument& doc, ShotProfile& out, Source source, uint8_t slot)
     out.spindownSpeed = doc["spindownSpeed"] | out.spindownSpeed;
     out.revSafetyTimeout_ms = doc["revSafetyTimeout_ms"] | out.revSafetyTimeout_ms;
     out.rpmMode = enumFromJson(doc["rpmMode"], kRpmModeIds, kRpmModeIdCount, out.rpmMode);
+    out.speedPotStage2Ratio = doc["speedPotStage2Ratio"] | out.speedPotStage2Ratio;
 
     uint8_t loadedModeCount = doc["activeModeCount"] | out.activeModeCount;
     if (loadedModeCount < 1)

@@ -38,6 +38,7 @@ struct World
 {
     int drive[hal::kPinCount];
     int analog[hal::kPinCount];
+    bool analogRises[hal::kPinCount];
     uint64_t analogRiseTau_us = 0;
     uint64_t analogRiseCharged_us = 0;
     std::map<uint8_t, bool> i2cDevices;
@@ -49,6 +50,7 @@ struct World
         {
             drive[i] = -1;
             analog[i] = 0;
+            analogRises[i] = false;
         }
         analogRiseTau_us = analogRiseCharged_us = 0;
         i2cDevices.clear();
@@ -210,10 +212,12 @@ uint32_t pinModeCalls()
     return chip.pinModeCalls;
 }
 
-void setAnalog(uint8_t pin, int raw)
+void setAnalog(uint8_t pin, int raw, bool rises)
 {
-    if (validPin(pin))
-        world.analog[pin] = raw;
+    if (!validPin(pin))
+        return;
+    world.analog[pin] = raw;
+    world.analogRises[pin] = rises;
 }
 
 void setAnalogRise(uint64_t tau_us, uint64_t charged_us)
@@ -390,7 +394,7 @@ int analogRead(pin_size_t pin)
     p.fn = GPIO_FUNC_NULL;
     p.pullUp = p.pullDown = false;
     syncRegisters(pin);
-    if (!world.analogRiseTau_us)
+    if (!world.analogRiseTau_us || !world.analogRises[pin])
         return world.analog[pin];
     const double t = (double)(world.analogRiseCharged_us + hal::now_us()) / world.analogRiseTau_us;
     return (int)(world.analog[pin] * (1.0 - std::exp(-t)));

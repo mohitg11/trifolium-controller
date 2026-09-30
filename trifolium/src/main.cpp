@@ -14,6 +14,7 @@
 #include "logging.h"
 #include "flywheelMotor.h"
 #include "menu.h"
+#include "menuCore.h" // motorRpmCeiling()
 #include "shotProfile.h"
 #include "profileStore.h"
 #include "deviceSettings.h"
@@ -76,7 +77,14 @@ bool wiringLive = false;
 // Same for the outputs: resolve() takes a pin away in RAM, leaving the stored config as written.
 uint8_t ledDataPin = PIN_NOT_USED;
 uint8_t batteryAdcPin = PIN_NOT_USED;
+uint8_t speedPotPin = PIN_NOT_USED;
 uint8_t escEnablePin = PIN_NOT_USED;
+
+// Stage 1's rev RPM as the speed pot sets it, before updateSpeedPot()'s limits; 0 with none wired.
+int32_t speedPotRpm = 0;
+// When the pot last changed the active profile's rev RPM, for persistSpeedPotWhenIdle() on core 1.
+volatile uint32_t speedPotChangedAt_ms = 0;
+volatile bool speedPotUnsaved = false;
 
 // deviceSettings.hasDisplay after the I2C pair has been judged. selectDisplayBus() re-checks, since
 // setSDA must not be reached on an illegal pin whatever this says.
@@ -220,6 +228,7 @@ void cycleFiringMode();
 uint8_t selectShotProfileAtBoot();
 bool fwControlLoop();
 void mainFiringLogic();
+void updateSpeedPot();
 void resetFWControl();
 void registerShot();
 void applyMotorConfig();
@@ -978,6 +987,11 @@ void setup()
             motorArr[i].attachEsc(new BidirDShotX1(escPin(i), dshotRate(deviceSettings.dshotMode)));
         }
     }
+    if (pinDefined(speedPotPin))
+    {
+        pinMode(speedPotPin, INPUT);
+        updateSpeedPot();
+    }
     dwellTime_ms = activeProfile.dwellTime_ms;
     idleTime_ms = activeProfile.idleTime_ms;
 
@@ -1096,6 +1110,52 @@ void mainFiringLogic()
         behaviorFor(burstMode).update(ctx, event);
     }
     batteryMonitor->update();
+    updateSpeedPot();
+}
+
+// Sets the active profile's rev RPM from the pot: stage 1 between Pot Min and Pot Max RPM,
+// stage 2 at that times the profile's ratio
+void updateSpeedPot()
+{
+    if (!pinDefined(speedPotPin))
+        return;
+    static constexpr int kEndDeadband = 12;     // raw counts at each end that still read as the end
+    static constexpr float kHysteresis = 0.01f; // a share of the whole travel
+    static float smoothed = -1.0f;
+    static float travel = -1.0f;
+    const int raw = analogRead(speedPotPin);
+    smoothed = smoothed < 0 ? raw : smoothed + (raw - smoothed) / 8.0f;
+    float now = (smoothed - kEndDeadband) / (1023.0f - 2 * kEndDeadband);
+    now = now < 0 ? 0 : now > 1 ? 1 : now;
+    if (travel < 0 || now == 0 || now == 1 || fabsf(now - travel) >= kHysteresis)
+        travel = now;
+
+    const float fromLow = deviceSettings.speedPotReversed ? 1.0f - travel : travel;
+    const int32_t lo = deviceSettings.speedPotMinRPM;
+    speedPotRpm = lo + (int32_t)((deviceSettings.speedPotMaxRPM - lo) * fromLow);
+
+    const int32_t floorRpm = deviceSettings.minFiringRPM + deviceSettings.firingRPMTolerance;
+    bool changed = false;
+    for (int i = 0; i < 4; i++)
+    {
+        if (!motorsEnabled[i])
+            continue;
+        const bool stage2 = deviceSettings.motorConfig[i].stage == STAGE_2;
+        int32_t rpm = stage2 ? (int32_t)(speedPotRpm * activeProfile.speedPotStage2Ratio)
+                             : speedPotRpm;
+        rpm = min(max(rpm, floorRpm), motorRpmCeiling(i));
+        if (activeProfile.revRPM[i] != rpm)
+        {
+            activeProfile.revRPM[i] = rpm;
+            changed = true;
+        }
+        motorArr[i].revRPM = rpm;
+    }
+    if (changed)
+    {
+        speedPotChangedAt_ms = millis();
+        speedPotUnsaved = true;
+    }
 }
 
 static uint32_t ledTime_ms = 0;
@@ -1843,6 +1903,23 @@ static void persistFiringModeWhenIdle()
     }
 }
 
+static const uint32_t SPEED_POT_SETTLE_MS = 1000;
+
+// The rev RPM the speed pot set, stored with the profile once the pot has held still for a second
+// and the wheels have stopped - a LittleFS write parks both cores.
+static void persistSpeedPotWhenIdle()
+{
+    if (!speedPotUnsaved || millis() - speedPotChangedAt_ms < SPEED_POT_SETTLE_MS)
+        return;
+    if (!driveTrainStopped())
+        return;
+    speedPotUnsaved = false; // cleared first: a move during the write marks it again
+    if (ProfileStore::saveProfile(activeProfileIndex, activeProfile))
+        logger.info("Stored the speed pot's rev RPM ", speedPotRpm);
+    else
+        speedPotUnsaved = true;
+}
+
 // One line at boot and every 3 s after, from core 1, the only core that writes to Serial. Stops
 // once a host has spoken - a reader taking the first JSON line would otherwise capture this.
 static void announceUnconfigured()
@@ -1873,6 +1950,7 @@ void loop1()
     {
         serviceMenuButton();
         persistFiringModeWhenIdle();
+        persistSpeedPotWhenIdle();
         return;
     }
 
@@ -1890,6 +1968,7 @@ void loop1()
         }
 
         persistFiringModeWhenIdle();
+        persistSpeedPotWhenIdle();
 
         if (millis() - lastUpdated > 100 || updateRuntimeNow)
         {
