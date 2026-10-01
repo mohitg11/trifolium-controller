@@ -79,6 +79,9 @@ struct DeviceSettings
     uint32_t menuButtonHoldTime_ms;
     uint16_t pusherDebounceTime_ms;
     uint16_t dartSwitchDebounce_ms; // how long a dart must show without a break to count
+    bool dartSensing;               // the pusher pushes only when the dart switch shows a dart
+    uint16_t dartWaitTimeout_ms;    // how long queued shots wait for a dart before they're dropped
+    uint16_t minPushTime_ms;        // how long a push ignores the dart switch before it can end
     int voltageAveragingWindow;
 
     bool useRpmBaseShotCounter; // if true, shot counter increases based on detected rpm drop,

@@ -63,6 +63,7 @@ extern uint8_t menuButtonPin, triggerSwitchPin, revSwitchPin, cycleSwitchPin, da
     idleSwitchPin, safetySwitchPin, ledDataPin, batteryAdcPin, speedPotPin, escEnablePin;
 extern uint8_t selectPins[3];
 extern bool dartPresent, breechEmptiedSincePush;
+extern uint32_t dartWaitSince_ms;
 extern uint8_t pusherPin();
 bool menuIsOpen();
 
@@ -948,6 +949,10 @@ class Host
         {
             v["present"] = dartPresent;
             v["emptiedSincePush"] = breechEmptiedSincePush;
+            if (dartWaitSince_ms == 0)
+                v["waitMs"] = nullptr;
+            else
+                v["waitMs"] = millis() - dartWaitSince_ms;
         }
         else if (name == "liveTargetDPS") v.set(liveTargetDPS);
         else if (name == "triggerTime_ms") v.set(triggerTime_ms);

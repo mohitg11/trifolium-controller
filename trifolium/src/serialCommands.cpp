@@ -36,6 +36,7 @@ extern int32_t speedPotRpm;
 extern uint8_t dartSwitchPin;
 extern bool dartPresent;
 extern bool breechEmptiedSincePush;
+extern uint32_t dartWaitSince_ms;
 bool idleHoldWanted();
 bool menuIsOpen();
 bool revControlAllowed();
@@ -367,6 +368,13 @@ void handleSerialCommands()
             Serial.print(dartPresent ? "true" : "false");
             Serial.print(",\"emptiedSincePush\":");
             Serial.print(breechEmptiedSincePush ? "true" : "false");
+            // How long a queued shot has waited for a dart; null while none is waiting.
+            const uint32_t waitSince_ms = dartWaitSince_ms;
+            Serial.print(",\"waitMs\":");
+            if (waitSince_ms == 0)
+                Serial.print("null");
+            else
+                Serial.print(millis() - waitSince_ms);
             Serial.print('}');
         }
         Serial.print(",\"motors\":[");

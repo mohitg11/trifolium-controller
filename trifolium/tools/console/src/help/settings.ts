@@ -87,6 +87,12 @@ export const SETTING_HELP: Record<string, string> = {
   "device:pusherType":
     "Solenoid applies the voltage-compensated extend times below. None leaves them out.",
   "device:pusherReverseDirection": "Flips the pusher motor's direction, for a motor wired backwards.",
+  "device:dartSensing":
+    "The pusher only pushes when the dart switch shows a dart, a new one each time, and pulls back as soon as that dart has gone. It never pushes an empty breech or the same dart twice.",
+  "device:minPushTime_ms":
+    "How long each push ignores the dart switch, since the pusher's jolt can make a dart look gone for a moment. After it, the pusher pulls back as soon as the switch reads empty. The extend time is still the longest a push lasts: set this at or above it to always push for the full time.",
+  "device:dartWaitTimeout_ms":
+    "How long a queued shot waits for a dart to arrive. When it runs out, the queued shots are dropped and the wheels follow the rev switch again.",
   "device:dartSwitchDebounce_ms":
     "How long the dart switch must show a dart without a break before it counts. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
   "device:pusherDebounceTime_ms": "Debounce for the pusher's own cycle-detection switch.",

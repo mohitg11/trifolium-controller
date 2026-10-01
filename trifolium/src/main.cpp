@@ -147,6 +147,8 @@ uint32_t half =
     0; // 1 << (deviceSettings.EMAFilter - 1); computed in setup(), once activeProfile is loaded
 Driver* pusher;
 uint16_t solenoidExtendTime_ms = 0;
+// How much sooner than its push time the last push ended, so Target DPS can give that time back.
+static uint32_t pushCutShort_ms = 0;
 float solenoidVoltageTimeSlope =
     0; // relationship between voltage and solenoid extend time calculated at setup
 int16_t solenoidVoltageTimeIntercept = 0;
@@ -181,6 +183,8 @@ bool dartPresent = false;
 bool breechEmptiedSincePush = true; // cleared at each push, set by any empty reading
 static bool dartShownLastTick = false;
 static uint32_t dartShownSince_ms = 0;
+// When the pusher became free to push with no dart to push; 0 while no shot is waiting for one.
+uint32_t dartWaitSince_ms = 0;
 
 // SAFE while the switch is held, the selected mode otherwise. Every reader of the live mode goes
 // through this, so the override reaches firing, the flywheels and the panel from one place.
@@ -372,7 +376,8 @@ void applyMaxAchievableDps()
     maxAchievableDPS = cycle_ms > 0 ? 1000.0f / cycle_ms : 0;
 }
 
-// Auto Timing's additive dwell on top of the existing voltage-compensated extend/retract cycle.
+// Auto Timing's additive dwell on top of the existing voltage-compensated extend/retract cycle. A
+// push that ended early left its cycle short by that much, which the dwell makes up.
 uint32_t computePusherDwellPadding_ms()
 {
     if (liveTargetDPS <= 0)
@@ -381,7 +386,8 @@ uint32_t computePusherDwellPadding_ms()
     float extendAtVoltage_ms =
         batteryMonitor->getVoltage_mv() * solenoidVoltageTimeSlope + solenoidVoltageTimeIntercept;
     float cycleTarget_ms = 1000.0f / liveTargetDPS;
-    float padding_ms = cycleTarget_ms - extendAtVoltage_ms - deviceSettings.solenoidRetractTime_ms;
+    float padding_ms = cycleTarget_ms - extendAtVoltage_ms - deviceSettings.solenoidRetractTime_ms +
+                       pushCutShort_ms;
     if (padding_ms < 0) // requested DPS isn't reachable - fire as fast as the hardware allows
         padding_ms = 0;
     return (uint32_t)padding_ms;
@@ -1037,6 +1043,43 @@ static bool dartSwitchShowsDart()
     return (digitalRead(dartSwitchPin) == LOW) != deviceSettings.dartSwitchNormallyClosed;
 }
 
+static bool dartSensingOn()
+{
+    return deviceSettings.dartSensing && pinDefined(dartSwitchPin);
+}
+
+// With Dart Sensing on, a push needs a dart that arrived after the last one, so a dart the pusher
+// failed to clear is never pushed at twice.
+static bool dartReadyToPush()
+{
+    return !dartSensingOn() || (dartPresent && breechEmptiedSincePush);
+}
+
+// The pusher's jolt can shake the switch, so it is only listened to once Min Push has passed. The
+// raw switch, not the debounced dart: a debounce would only hold the pusher out longer.
+static bool dartHasLeft()
+{
+    return dartSensingOn() && time_ms > pusherTimer_ms + deviceSettings.minPushTime_ms &&
+           !dartSwitchShowsDart();
+}
+
+// Queued shots hold the wheels at speed, so an empty magazine would keep them there for good.
+// Dropping the queue lets them follow the rev switch again.
+static void waitForDart()
+{
+    if (dartWaitSince_ms == 0)
+    {
+        dartWaitSince_ms = time_ms;
+        return;
+    }
+    if (time_ms - dartWaitSince_ms < deviceSettings.dartWaitTimeout_ms)
+        return;
+    logger.warn("No dart in the breech for ", time_ms - dartWaitSince_ms, " ms, dropping ",
+                shotsToFire, " queued shots");
+    shotsToFire = 0;
+    dartWaitSince_ms = 0;
+}
+
 static void updateDartSwitch()
 {
     if (!pinDefined(dartSwitchPin))
@@ -1381,6 +1424,9 @@ bool fwControlLoop()
         return true;
     }
 
+    if (shotsToFire <= 0 || flywheelState != STATE_FULLSPEED)
+        dartWaitSince_ms = 0;
+
     switch (flywheelState)
     {
 
@@ -1572,10 +1618,17 @@ bool fwControlLoop()
         {
             lastRevTime_ms = time_ms;
 
-            if (shotsToFire > 0 && !firing &&
-                time_ms > pusherTimer_ms + deviceSettings.solenoidRetractTime_ms +
-                              computePusherDwellPadding_ms())
+            const bool pusherFree = shotsToFire > 0 && !firing &&
+                                    time_ms > pusherTimer_ms +
+                                                  deviceSettings.solenoidRetractTime_ms +
+                                                  computePusherDwellPadding_ms();
+            if (pusherFree && !dartReadyToPush())
+            {
+                waitForDart();
+            }
+            else if (pusherFree)
             { // extend solenoid
+                dartWaitSince_ms = 0;
                 if (!deviceSettings.useRpmBaseShotCounter)
                 {
                     registerShot();
@@ -1611,12 +1664,18 @@ bool fwControlLoop()
                 }
                 lastShotExtendTime_ms = time_ms;
             }
-            else if (firing && time_ms > pusherTimer_ms + solenoidExtendTime_ms)
+            else if (firing && (time_ms > pusherTimer_ms + solenoidExtendTime_ms || dartHasLeft()))
             { // retract solenoid
+                const uint32_t fullPushEnd_ms = pusherTimer_ms + solenoidExtendTime_ms + 1;
+                pushCutShort_ms = time_ms < fullPushEnd_ms ? fullPushEnd_ms - time_ms : 0;
                 pusher->coast();
                 firing = false;
+                if (pushCutShort_ms)
+                    logger.info("Solenoid retracting, the dart left after ", time_ms - pusherTimer_ms,
+                                " ms");
+                else
+                    logger.info("Solenoid retracting");
                 pusherTimer_ms = time_ms;
-                logger.info("Solenoid retracting");
             }
         }
         break;

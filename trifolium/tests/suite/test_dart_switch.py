@@ -1,12 +1,11 @@
 """The dart switch: a switch or sensor in the breech that sees a dart waiting to be pushed. It is
 read every tick and counts a dart only once it has shown one for the debounce time without a break;
-the breech reads empty at once. The pusher does not act on it yet - this is the wiring."""
+the breech reads empty at once. With Dart Sensing off, as here, the pusher does not act on it;
+test_dart_sensing.py has it on."""
 
 import json
 
-import pytest
-
-from helpers import armed_v12, keyed_nodes, schema
+from helpers import armed_v12, schema
 
 DART_PIN = 20  # free on a v1.2
 DART = {"dartSwitchPin": DART_PIN, "dartSwitchDebounce_ms": 10}
@@ -23,7 +22,8 @@ def test_a_dart_switch_pin_is_attached_as_a_pulled_up_input_and_reported_under_i
     gpio = b.command("DUMP_GPIO")
     assert "dart" in [p.get("role") for p in gpio["gpio"] if p["n"] == DART_PIN]
     assert schema(b)["pinConflicts"] == []
-    assert b.command("DUMP_MOTORS")["dart"] == {"present": False, "emptiedSincePush": True}
+    assert b.command("DUMP_MOTORS")["dart"] == {"present": False, "emptiedSincePush": True,
+                                                "waitMs": None}
 
 
 def test_a_dart_counts_only_once_the_switch_has_shown_it_for_the_debounce(blaster):
@@ -80,7 +80,7 @@ def test_a_dart_already_in_the_breech_at_power_on_counts_at_once(blaster):
     b.press("dart")
     assert b.boot(0)
     assert b.run_until_peek("bootSettingsLoaded", True, limit_ms=5000)
-    assert dart(b) == {"present": True, "emptiedSincePush": True}
+    assert dart(b) == {"present": True, "emptiedSincePush": True, "waitMs": None}
 
 
 def test_a_push_clears_emptied_since_push_until_the_breech_reads_empty(blaster):
@@ -92,7 +92,7 @@ def test_a_push_clears_emptied_since_push_until_the_breech_reads_empty(blaster):
     assert b.run_until(lambda: len(b.extends()) >= 1, 1500)
     b.release("trigger")
     b.run_ms(100)
-    assert dart(b) == {"present": True, "emptiedSincePush": False}
+    assert dart(b) == {"present": True, "emptiedSincePush": False, "waitMs": None}
     b.release("dart")
     b.run_ms(2)
     assert dart(b)["emptiedSincePush"] is True
@@ -111,13 +111,17 @@ def test_a_config_written_before_the_dart_switch_loads_it_unwired(blaster):
     b = blaster
     b.flash_preset("trifolium_v1_2")
     stored = b.flash_json("/device.cfg")
-    for key in ("dartSwitchPin", "dartSwitchNormallyClosed", "dartSwitchDebounce_ms"):
+    for key in ("dartSwitchPin", "dartSwitchNormallyClosed", "dartSwitchDebounce_ms",
+                "dartSensing", "dartWaitTimeout_ms", "minPushTime_ms"):
         stored.pop(key, None)
     b.flash_put("/device.cfg", json.dumps(stored))
     assert b.boot(500)
     assert b.peek("pins")["dart"] == 255
     assert b.command("DUMP_MOTORS")["dart"] is None
-    assert b.command("DUMP_DEVICE")["dartSwitchDebounce_ms"] == 10
+    device = b.command("DUMP_DEVICE")
+    assert device["dartSwitchDebounce_ms"] == 10
+    assert device["dartSensing"] is False and device["dartWaitTimeout_ms"] == 1000
+    assert device["minPushTime_ms"] == 8
 
 
 def auto_extends(b):
@@ -132,18 +136,13 @@ def auto_extends(b):
 
 
 def test_a_wired_dart_switch_leaves_the_firing_rhythm_as_it_was(make_blaster):
-    """With no dart in the breech, too: the pusher does not read the switch. A shot it held back
-    would be a whole cycle late or missing. Two boots whose stored configs differ at all drift a
-    few milliseconds apart over a burst, whatever the difference is, so that is allowed for."""
+    """With no dart in the breech, too: with Dart Sensing off the pusher does not read the switch.
+    A shot it held back would be a whole cycle late or missing. Two boots whose stored configs
+    differ at all drift a few milliseconds apart over a burst, whatever the difference is, so that
+    is allowed for."""
     without = auto_extends(armed_v12(make_blaster()))
     wired = auto_extends(armed_v12(make_blaster(), DART))
     assert len(without) > 5
     assert len(wired) == len(without)
     assert all(abs(a - b) <= 5 for a, b in zip(wired, without)), (wired, without)
 
-
-@pytest.mark.parametrize("pin, shown", [(DART_PIN, True), (255, False)])
-def test_the_dart_debounce_shows_only_with_a_dart_switch_wired(blaster, pin, shown):
-    b = armed_v12(blaster, {"dartSwitchPin": pin})
-    node = keyed_nodes(schema(b)["tree"])["device:dartSwitchDebounce_ms"]
-    assert node.get("visible", True) is shown
