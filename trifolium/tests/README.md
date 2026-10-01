@@ -149,11 +149,16 @@ With `serve.py` running, **http://127.0.0.1:5336/** is a blaster to use by hand:
   empty is dry. Before the first reload every push launches a dart.
 - **Readouts:** each wheel's RPM against its target, with its ESC while that is starting or
   unpowered, the pusher's shots this boot, the pusher - lit while powered, whether by its FET or its
-  ESC channel, with the last pulse's length - and the rev state.
+  ESC channel, with the last pulse's length - the fire mode the firmware is in, and the rev state.
 - **Controls:** the pack voltage, the simulation speed (simulated seconds per real one: below 1x is
   slow motion, though the console's timeouts stay real-time), and power: **Power on from battery**
   starts the ESCs with the chip; **Power on from USB** leaves the pack unplugged, so the ESCs stay dark
   and arming runs out, until the slider plugs it back in.
+
+The blaster on the panel is the one its config describes. At each boot, each wheel becomes the motor
+its `motorConfig` names, with that Kv and pole count. When the battery type changes, the pack becomes
+a charged one of that type, at 4.1 V a cell; it stays unplugged if it was. The suite's own tests set
+up their wheels and pack themselves, through `wheel()` and `set_pack()`.
 
 The web console sits beside it, connected to the same blaster, so a setup is made there exactly as on
 hardware and tried on the panel. The console is served as last built, with `webserial_shim.js` in

@@ -227,6 +227,11 @@ void setAnalog(uint8_t pin, int raw, bool rises)
     world.analogRises[pin] = rises;
 }
 
+bool analogRises(uint8_t pin)
+{
+    return validPin(pin) && world.analogRises[pin];
+}
+
 void setAnalogRise(uint64_t tau_us, uint64_t charged_us)
 {
     world.analogRiseTau_us = tau_us;

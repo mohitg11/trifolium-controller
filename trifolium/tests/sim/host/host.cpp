@@ -18,6 +18,7 @@
 #include "batteryMonitor.h"
 #include "deviceSettings.h"
 #include "deviceStore.h"
+#include "enumIds.h"
 #include "flywheelMotor.h"
 #include "global.h"
 #include "menu.h"
@@ -342,6 +343,7 @@ class Host
             if (started_)
                 throw Error("already booted - one boot per process");
             started_ = true;
+            setPack(packMv_); // the flash is final now, so which ADC pin is the pot's is known
             machine_.start();
             status(out);
         }
@@ -404,6 +406,8 @@ class Host
                 w["rpm"] = wheels_[i].rpm;
                 w["peak"] = wheels_[i].peakRpm;
                 w["throttle"] = wheels_[i].throttle;
+                w["kv"] = wheels_[i].kv;
+                w["polePairs"] = wheels_[i].polePairs;
                 w["esc"] = !wheels_[i].powered                     ? "unpowered"
                            : wheels_[i].started(hal::now_us()) ? "up"
                                                                 : "starting";
@@ -461,6 +465,7 @@ class Host
 
     hal::Machine machine_;
     bool started_ = false;
+    int32_t packMv_ = 0; // what setPack() last gave
     SimFlywheel wheels_[4];
     sim::Panel panel_;
     bool dartsLoaded_ = true;
@@ -568,15 +573,19 @@ class Host
     }
 
     // BatteryMonitor: pack = adc_mv * 11, adc_mv = raw * 3300 / 1023. On every ADC pin but the
-    // speed pot's, because before boot nothing has read which one the wiring uses.
+    // speed pot's, because before boot nothing has read which one the wiring uses. A pack reading
+    // left on the pot's pin from before it was the pot's is cleared: a pot left alone reads 0.
     void setPack(int32_t mv)
     {
+        packMv_ = mv;
         const int raw = (int)((mv / 11.0) * 1023.0 / 3300.0 + 0.5);
         const uint8_t pot = wiring().speedPotPin;
         for (uint8_t pin = 26; pin <= 29; pin++)
         {
             if (pin != pot)
                 hal::setAnalog(pin, raw, true);
+            else if (hal::analogRises(pin))
+                hal::setAnalog(pin, 0);
         }
         for (SimFlywheel& w : wheels_)
         {
@@ -942,6 +951,8 @@ class Host
         else if (name == "booted") v.set(started_ && booted());
         else if (name == "menuOpen") v.set(menuIsOpen());
         else if (name == "burstMode") v.set((int)burstMode);
+        else if (name == "burstModeId")
+            v.set(burstMode < kBurstModeIdCount ? kBurstModeIds[burstMode] : "?");
         else if (name == "bootReason") v.set((int)bootReason);
         else if (name == "requestRev") v.set(requestRev);
         else if (name == "rpmScale") v.set(rpmScale_);

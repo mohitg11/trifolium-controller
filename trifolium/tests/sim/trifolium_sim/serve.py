@@ -55,13 +55,18 @@ SHIM = HERE / "webserial_shim.js"
 CONSOLE = PROJECT / "tools" / "console" / "dist" / "index.html"
 FLYWHEEL_STATES = {IDLE: "idle", ACCELERATING: "accelerating", FULLSPEED: "at speed"}
 PIN_NOT_USED = 255
-DEFAULT_PACK_MV = 16400
+PACK_MV_PER_CELL = 4100  # a charged pack, a little off the top
 PULSE_WINDOW_US = 500_000  # longer than any extend, so a pulse under way at the last look is whole
 
 
 def driven_high(b, pin):
     level = b.pins()[pin]
     return bool(level["output"] and level["outputLevel"])
+
+
+def charged_pack_mv(settings):
+    """A charged pack of the battery type the blaster is set up for."""
+    return int(settings.get("batteryType", "4s").rstrip("s")) * PACK_MV_PER_CELL
 
 
 def pusher(b, pin, since_us, esc=None):
@@ -89,7 +94,8 @@ def snapshot(b, since_us=0):
         return reply
     panel = b.panel(pixels=True)
     values = b.peek("motors", "battery", "flywheelState", "firing", "runtimeShotCounter",
-                    "safetyEngaged", "menuOpen", "activeProfileIndex", "wiringLive")
+                    "safetyEngaged", "menuOpen", "activeProfileIndex", "wiringLive",
+                    "burstModeId")
     values["flywheelState"] = FLYWHEEL_STATES.get(values["flywheelState"], values["flywheelState"])
     values["magazine"] = b.magazine_state()
     settings = b.wiring()
@@ -150,7 +156,7 @@ def control(b, req):
         if req.get("source") == "usb":
             b.set_pack(0)
         else:
-            b.set_pack(req.get("mv") or b.pack_mv or DEFAULT_PACK_MV)
+            b.set_pack(req.get("mv") or b.pack_mv or charged_pack_mv(b.wiring()))
         b.power_cycle()
         b.power_on()
         return {}
@@ -345,6 +351,25 @@ class Server:
         self.scanned = self.announced_end = len(self.b.transcript)
         self.boots = self.b.boot_count
         self.enumerated_at = 0.0
+        self.motors = None        # the motorConfig the wheels were last matched to
+        self.battery_type = None  # the battery type the pack was last charged for
+        self._match_hardware()
+
+    def _match_hardware(self):
+        """The simulated blaster is the one its config describes: each wheel is the motor its
+        motorConfig names, and a change of battery type swaps in a charged pack of that type -
+        unless the pack is unplugged. Called at each boot, once the config is the boot's."""
+        settings = self.b.wiring()
+        motors = [(m["motorKv"], m["motorPolesDiv2"]) for m in settings.get("motorConfig", [])]
+        if motors != self.motors:
+            self.motors = motors
+            for i, (kv, pole_pairs) in enumerate(motors):
+                self.b.wheel(i, kv=kv, poles=pole_pairs)
+        battery = settings.get("batteryType")
+        if battery != self.battery_type:
+            self.battery_type = battery
+            if self.b.pack_mv > 0:
+                self.b.set_pack(charged_pack_mv(settings))
 
     def _listen(self, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -593,6 +618,7 @@ class Server:
             self.b.run_until_reboot(ANNOUNCED_REBOOT_MS)  # unpaced: there the moment it says so
         if self.b.boot_count != self.boots:
             self.boots = self.b.boot_count
+            self._match_hardware()
             self._drop_host(drain=True)  # re-enumeration: the host has to open the port again
             self.enumerated_at = time.monotonic() + ENUMERATION_S / self.speed
 

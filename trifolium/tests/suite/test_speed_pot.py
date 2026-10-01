@@ -177,6 +177,18 @@ def test_the_pack_voltage_leaves_the_pot_where_it_is(blaster):
     assert revs(b) == [30000, 30000]
 
 
+def test_a_pot_left_alone_reads_its_lowest_on_a_pin_that_read_the_pack_before_it_was_wired(blaster):
+    """Until the wiring names a pot, every ADC pin carries the pack's reading. None of it is left on
+    the pot's pin once one does - at the first boot, or after a reboot that wires it."""
+    b = blaster
+    b.set_pack(14000)  # nothing on flash yet, so on GPIO 27 too
+    potted(b, None)
+    assert revs(b) == [10000, 10000]
+    rewire(b, 255)
+    rewire(b, POT)
+    assert revs(b) == [10000, 10000]
+
+
 def test_a_pot_on_a_pin_with_no_adc_channel_is_cleared_and_reported(blaster):
     b = potted(blaster, None, {"speedPotPin": 11})
     assert b.peek("pins")["speedPot"] == 255

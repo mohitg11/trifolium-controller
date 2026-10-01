@@ -481,6 +481,8 @@ function drawStatus(s) {
   // The firmware's rev state, not the wheels' speed: "idle" covers a dwell with the wheels still up.
   if (s.flywheelState !== undefined) chips.push(["Rev state: " + s.flywheelState, s.flywheelState !== "idle"]);
   if (s.firing !== undefined) chips.push([s.firing ? "Firing" : "Not firing", s.firing]);
+  // The mode the firmware is in, selector and safety applied: a blaster with no screen shows it nowhere else.
+  if (s.burstModeId) chips.push([`Mode ${s.burstModeId.toUpperCase()}`, false]);
   if (s.activeProfileIndex !== undefined) chips.push([`Slot ${s.activeProfileIndex + 1}`, false]);
   if (s.safetyEngaged) chips.push(["Safety on", true]);
   if (s.menuOpen) chips.push(["Menu open", true]);

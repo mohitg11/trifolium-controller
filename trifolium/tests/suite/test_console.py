@@ -173,6 +173,15 @@ def board_name(board):
     return board_file(board)["name"]
 
 
+def fill_unused(board_value, config_value):
+    """The config's pin where the board leaves the slot unused, the board's otherwise."""
+    if isinstance(config_value, list):
+        ours = board_value if isinstance(board_value, list) else []
+        return [fill_unused(ours[i] if i < len(ours) else None, pin)
+                for i, pin in enumerate(config_value)]
+    return config_value if board_value in (None, 255) else board_value
+
+
 def pin_keys():
     """The device settings the schema shows as pins, by their name in the device config."""
     schema = json.loads((CONSOLE.parent.parent / "src" / "fixtures" / "schema.json").read_text(
@@ -193,7 +202,8 @@ def pin_keys():
 @pytest.mark.parametrize("path,board", blaster_cases())
 def test_an_unwired_blaster_set_up_with_a_blaster_config_stores_the_whole_config(
         page, serve, path, board):
-    # Every pin as the board has it and every other value as the file has it: a setting the
+    # Every pin as the board has it - and, on the board the file was saved on, as the file has
+    # those the board leaves unused - and every other value as the file has it: a setting the
     # firmware clamps on arrival is a blaster that runs differently from the file its builders
     # published.
     blaster = json.loads(path.read_text(encoding="utf-8"))
@@ -205,6 +215,8 @@ def test_an_unwired_blaster_set_up_with_a_blaster_config_stores_the_whole_config
     page.get_by_role("option", name=board_name(board), exact=True).click()
     page.get_by_role("combobox", name="Blaster config").click()
     page.get_by_role("option", name=f"{name} (built on {board_name(blaster['board'])})").click()
+    for note in blaster.get("notes", []):
+        expect(page.get_by_text(note, exact=True)).to_be_visible()
     page.get_by_role("button", name="Load the wiring and config, and restart").click()
 
     expect(page.get_by_text(f"Set up as {name} on {board_name(board)}.")).to_be_visible(
@@ -214,7 +226,11 @@ def test_an_unwired_blaster_set_up_with_a_blaster_config_stores_the_whole_config
     stored += [served.flash_json(f"/profile{slot}.cfg") for slot in range(len(blaster["profiles"]))]
     pins = pin_keys()
     device = {k: v for k, v in blaster["device"].items() if k not in pins}
-    device.update({k: v for k, v in board_file(board).items() if k in pins})
+    wiring = {k: v for k, v in board_file(board).items() if k in pins}
+    device.update(wiring)
+    if blaster["board"] == board:
+        device.update({k: fill_unused(wiring.get(k), v) for k, v in blaster["device"].items()
+                       if k in pins})
     device.update(boardId=board, wiringConfigured=True)
     wanted = [device, *blaster["profiles"]]
     names = ["device", *(f"profile{slot}" for slot in range(len(blaster["profiles"])))]
@@ -848,6 +864,15 @@ def test_a_wired_led_on_the_panel_is_lit_once_armed_and_blinks_below_the_cutoff(
     served.bench("pack", mv=12000)  # below a 4S pack's 13.2 V cutoff, which LED Warning's default names
     expect(label).to_have_text("LED · GPIO 27 · off", timeout=10000)
     expect(label).to_have_text("LED · GPIO 27 · on", timeout=5000)
+
+
+def test_the_panel_names_the_mode_the_firmware_is_in(page, serve):
+    served = serve()
+    open_panel(page, served)
+    status = page.locator("#status")
+    expect(status).to_contain_text("Mode BINARY", timeout=REBOOT_MS)  # the v1.2's, grounding none
+    page.locator("#selector").get_by_role("radio").nth(0).click()
+    expect(status).to_contain_text("Mode AUTO")
 
 
 def test_a_switch_select_fire_is_one_switch_with_a_position_per_pin_and_one_grounding_none(page, serve):
