@@ -11,7 +11,7 @@ extern DeviceSettings deviceSettings;
 extern uint8_t pusherPin();
 extern bool wiringLive;
 
-// The nine pins as the conflict engine left them. deviceSettings still carries what the
+// The ten switch pins as the conflict engine left them. deviceSettings still carries what the
 // user asked for, so reporting from it names the role that *lost* a contested pin.
 #include "menuCore.h"
 
@@ -74,6 +74,7 @@ const char* roleOf(uint8_t pin)
         {triggerSwitchPin, "trigger"},
         {revSwitchPin, "rev"},
         {cycleSwitchPin, "cycle"},
+        {dartSwitchPin, "dart"},
         {idleSwitchPin, "idle"},
         {safetySwitchPin, "safety"},
         {selectPins[0], "select0"},

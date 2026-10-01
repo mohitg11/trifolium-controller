@@ -823,11 +823,20 @@ def test_the_panel_offers_a_button_for_each_wired_switch_and_a_held_trigger_fire
         re.compile(r"^Solenoid · GPIO 24 · (powered|off) · last pulse 2[5-7]\.\d ms$"))
 
 
-def test_an_esc_driven_pusher_is_named_on_the_panel_rather_than_shown_as_a_solenoid(page, serve):
+def test_an_esc_driven_pusher_lights_and_counts_on_the_panel_as_a_fet_driven_one_does(page, serve):
     served = serve(preset="trifolium_v1_4", device={"pusherDrive": "esc"})
     open_panel(page, served)
-    expect(page.locator("#solenoid-label")).to_have_text("Pusher on ESC channel 3, not a solenoid",
-                                                         timeout=REBOOT_MS)
+    label = page.locator("#solenoid-label")
+    expect(label).to_have_text("Pusher · ESC channel 3 · off", timeout=REBOOT_MS)
+
+    served.wait_armed()
+    trigger = switch(page, "Trigger").bounding_box()
+    page.mouse.move(trigger["x"] + trigger["width"] / 2, trigger["y"] + trigger["height"] / 2)
+    page.mouse.down()
+    expect(page.get_by_text(re.compile(r"^[1-9]\d* shots? this boot$"))).to_be_visible(timeout=5000)
+    page.mouse.up()
+    expect(label).to_have_text(
+        re.compile(r"^Pusher · ESC channel 3 · (powered|off) · last pulse 2[5-7]\.\d ms$"))
 
 
 def test_a_wired_led_on_the_panel_is_lit_once_armed_and_blinks_below_the_cutoff(page, serve):
@@ -888,6 +897,25 @@ def test_an_encoder_select_fire_is_a_knob_with_a_detent_per_combination_of_its_l
     served.until(lambda: mode() == 1)
     detents.nth(1).click()
     served.until(lambda: mode() == 0)
+
+
+def test_the_panel_loads_a_magazine_whose_breech_the_dart_switch_reads(page, serve):
+    served = serve(device={"dartSwitchPin": 20})
+    open_panel(page, served)
+    label = page.locator("#magazine-label")
+    expect(label).to_have_text("No magazine in: every push launches a dart.", timeout=REBOOT_MS)
+    expect(switch(page, "Dart")).to_have_count(0)  # the magazine is what fills the breech
+
+    def present():
+        return served.bench("peek", names=["dart"])["values"]["dart"]["present"]
+
+    size = page.locator("#mag-size")
+    size.fill("6")
+    size.press("Enter")
+    page.get_by_role("button", name="Reload magazine").click()
+    expect(label).to_have_text(re.compile(r"^6 of 6 left · a dart in the breech · 0 fired, 0 dry$"))
+    expect(page.locator("#breech-lamp")).to_have_class(re.compile(r"\bon\b"))
+    served.until(present)
 
 
 def test_with_no_speed_pot_wired_the_panel_has_no_pot_slider(page, serve):

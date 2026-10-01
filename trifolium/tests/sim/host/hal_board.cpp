@@ -74,6 +74,7 @@ World world;
 Chip chip;
 hal::Flash flashStore;
 std::function<void(uint8_t, bool)> writeHook;
+std::function<int(uint8_t)> inputHook;
 std::function<void(const hal::I2cWrite&)> i2cHook;
 uint64_t i2cCount = 0;
 
@@ -88,6 +89,12 @@ bool readLevel(uint8_t pin)
         return false;
     if (world.drive[pin] >= 0)
         return world.drive[pin] != 0;
+    if (inputHook)
+    {
+        const int level = inputHook(pin);
+        if (level >= 0)
+            return level != 0;
+    }
     const Pin& p = chip.pins[pin];
     if (p.fn == GPIO_FUNC_SIO && p.modeSet && p.mode == OUTPUT)
         return p.out;
@@ -242,6 +249,11 @@ void setPinFunction(uint8_t pin, uint8_t gpioFunction)
 void setWriteHook(std::function<void(uint8_t pin, bool level)> hook)
 {
     writeHook = std::move(hook);
+}
+
+void setInputHook(std::function<int(uint8_t pin)> hook)
+{
+    inputHook = std::move(hook);
 }
 
 void serialWrite(const std::string& bytes)

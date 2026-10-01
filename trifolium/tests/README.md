@@ -67,6 +67,8 @@ def test_a_preset_arms_an_unwired_board(blaster):
 - **Before boot:** `flash_preset(id, overrides)`, `flash_profile(slot, doc)`, `flash_put(path, data)`,
   `attach_display()`, `set_pack(mv, rise_ms=)`, `pot(fraction)` (the speed pot, on whatever pin the
   wiring gives it; the pack is read on every other ADC pin), `analog(pin, raw)`,
+  `magazine(capacity=, load_rate=, leave_ms=)` and `reload()` (a magazine feeding the breech, which
+  the dart switch reads; it stays in across reboots), `magazine_state()`,
   `wheel(i, kv=, loaded=, tauUp=, replies=, replyEvery=)`,
   `esc_startup(ms=, restart_ms=)`, `darts(loaded=, loss_rpm=)`, `passthrough_session(ms, restore_fails=)`, `set_noinit(...)`. A switch
   can be held through power-on, too.
@@ -80,7 +82,9 @@ def test_a_preset_arms_an_unwired_board(blaster):
   `host.cpp`), `wheels()`, `escs()` with the DShot commands each ESC was sent and the frames and
   replies it lost, `heap()`, `pins()`, `edges(pin)`,
   `extends()`, `panel()` - its text read back the way a person reads it, with the highlighted row
-  marked.
+  marked. An ESC-driven pusher is a brushed motor on an ESC in place of a FET: it is out while its
+  channel is sent throttle, so `extends()` and `edges()` on that channel's pin read it the way they
+  read a FET's gate.
 - **The OLED menu:** `suite/helpers.py` drives it the way a person does - `open_menu`,
   `enter(b, "Advanced", "Device")`, `select(b, "Idle Mode")`, `rows(b)` for the open list,
   `close_menu`. Rows too long for the panel are cut at its edge, as on the device.
@@ -139,9 +143,13 @@ With `serve.py` running, **http://127.0.0.1:5336/** is a blaster to use by hand:
   the positions in between, with the arrows beside it or `[` and `]`. With a button-type one,
   Select 1 is a push button, left out when it shares the menu button's pin. A wired speed pot is a
   slider.
+- **Magazine:** its size, the load rate its spring feeds the breech at (10-200 darts a second), and
+  Reload. Once one is in, each push carries the breech's dart out past the dart switch and into the
+  wheels, the next dart arrives a feed interval after the pusher is back, and a push with the breech
+  empty is dry. Before the first reload every push launches a dart.
 - **Readouts:** each wheel's RPM against its target, with its ESC while that is starting or
-  unpowered, the pusher's shots this boot, the solenoid - lit while powered, with the last pulse's
-  length - and the rev state.
+  unpowered, the pusher's shots this boot, the pusher - lit while powered, whether by its FET or its
+  ESC channel, with the last pulse's length - and the rev state.
 - **Controls:** the pack voltage, the simulation speed (simulated seconds per real one: below 1x is
   slow motion, though the console's timeouts stay real-time), and power: **Power on from battery**
   starts the ESCs with the chip; **Power on from USB** leaves the pack unplugged, so the ESCs stay dark

@@ -64,18 +64,21 @@ def driven_high(b, pin):
     return bool(level["output"] and level["outputLevel"])
 
 
-def solenoid(b, pin, since_us):
-    """The pusher's FET pin: whether the solenoid is powered now, and the length of each pulse that
-    ended after `since_us`. A pulse is shorter than the panel's refresh, so they come from edges."""
-    rise, pulses = None, []
+def pusher(b, pin, since_us, esc=None):
+    """The pusher's gate - a FET's pin, or the channel of an ESC driving a brushed pusher, whose
+    edges the simulator keeps the same way: whether it is powered now, and the length of each pulse
+    that ended after `since_us`. A pulse is shorter than the panel's refresh, so they come from
+    edges."""
+    rise, pulses, on = None, [], False
     for at, level in b.edges(pin, max(0, since_us - PULSE_WINDOW_US)):
+        on = level
         if level:
             rise = at
         elif rise is not None:
             if at > since_us:
                 pulses.append(at - rise)
             rise = None
-    return {"pin": pin, "on": driven_high(b, pin), "pulses": pulses}
+    return {"pin": pin, "esc": esc, "on": on if esc else driven_high(b, pin), "pulses": pulses}
 
 
 def snapshot(b, since_us=0):
@@ -88,15 +91,19 @@ def snapshot(b, since_us=0):
     values = b.peek("motors", "battery", "flywheelState", "firing", "runtimeShotCounter",
                     "safetyEngaged", "menuOpen", "activeProfileIndex", "wiringLive")
     values["flywheelState"] = FLYWHEEL_STATES.get(values["flywheelState"], values["flywheelState"])
+    values["magazine"] = b.magazine_state()
     settings = b.wiring()
     led = settings.get("ledDataPin", PIN_NOT_USED)
     if led != PIN_NOT_USED:
         values["led"] = {"pin": led, "on": driven_high(b, led)}
     fet = settings.get("pusherFetPin", PIN_NOT_USED)
     if settings.get("pusherDrive") == "esc":
-        values["pusherEsc"] = settings.get("pusherEscChannel")
+        channel = settings.get("pusherEscChannel", "esc3")
+        pin = settings["escPins"][int(channel.replace("esc", "")) - 1]
+        if pin != PIN_NOT_USED:
+            values["solenoid"] = pusher(b, pin, since_us or 0, esc=channel)
     elif fet != PIN_NOT_USED:
-        values["solenoid"] = solenoid(b, fet, since_us or 0)
+        values["solenoid"] = pusher(b, fet, since_us or 0)
     return {**reply, **values, "panel": {"on": panel.on, "pixels": panel.pixels},
             "wheels": b.wheels(), "extends": len(b.extends())}
 
@@ -115,6 +122,12 @@ def control(b, req):
         return {}
     if op == "pot":
         b.pot(req["fraction"])
+        return {}
+    if op == "magazine":
+        b.magazine(capacity=req.get("capacity"), load_rate=req.get("loadRate"))
+        return {}
+    if op == "reload":
+        b.reload()
         return {}
     if op == "panel":
         panel = b.panel(pixels=req.get("pixels", False))
@@ -153,8 +166,8 @@ def control(b, req):
     raise ValueError(f"unknown op {op!r}")
 
 
-CONTROL = ("press release tap pack pot panel peek wheels extends wiring power_cycle power_on state "
-           "flash snapshot speed").split()
+CONTROL = ("press release tap pack pot magazine reload panel peek wheels extends wiring power_cycle "
+           "power_on state flash snapshot speed").split()
 
 
 class Host:

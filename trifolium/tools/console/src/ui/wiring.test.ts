@@ -59,6 +59,7 @@ const POLARITIES = [
   "device:revSwitchNormallyClosed",
   "device:menuButtonNormallyClosed",
   "device:cycleSwitchNormallyClosed",
+  "device:dartSwitchNormallyClosed",
   "device:idleSwitchNormallyClosed",
 ];
 

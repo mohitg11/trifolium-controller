@@ -95,6 +95,7 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:pusherType",
       "device:pusherReverseDirection",
       "device:pusherDebounceTime_ms",
+      "device:dartSwitchDebounce_ms",
       "device:solenoidRetractTime_ms",
       "device:vibrationPulseMs",
     ],
@@ -161,6 +162,7 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:revSwitchPin",
       "device:menuButtonPin",
       "device:cycleSwitchPin",
+      "device:dartSwitchPin",
       "device:idleSwitchPin",
       "device:select0Pin",
       "device:select1Pin",
@@ -185,6 +187,7 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:revSwitchNormallyClosed",
       "device:menuButtonNormallyClosed",
       "device:cycleSwitchNormallyClosed",
+      "device:dartSwitchNormallyClosed",
       "device:idleSwitchNormallyClosed",
       "device:safetySwitchNormallyClosed",
       // Boot actions are not wiring, but they are indexed by these same eight controls, so the

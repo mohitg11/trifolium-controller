@@ -80,8 +80,8 @@ PRESET_DESCRIPTIVE_KEYS = {"kind", "presetVersion", "id", "name", "notes", "unre
 PRESET_ALLOWED_KEYS = {
     "boardId", "wiringConfigured",
     "escPins", "i2cSdaPin", "i2cSclPin", "batteryAdcPin", "speedPotPin", "escEnablePin",
-    "menuButtonPin", "triggerSwitchPin", "revSwitchPin", "cycleSwitchPin", "idleSwitchPin",
-    "safetySwitchPin", "select0Pin", "select1Pin", "select2Pin",
+    "menuButtonPin", "triggerSwitchPin", "revSwitchPin", "cycleSwitchPin", "dartSwitchPin",
+    "idleSwitchPin", "safetySwitchPin", "select0Pin", "select1Pin", "select2Pin",
     "pusherDrive", "pusherFetPin", "ledDataPin",
 }
 

@@ -83,7 +83,7 @@
   .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
   .chip.on { border-color: var(--held); color: var(--held); }
   label.row { display: grid; grid-template-columns: 90px 1fr 70px; gap: 8px; align-items: center; margin: 6px 0; }
-  select, input[type=range] { width: 100%; }
+  select, input[type=range], input[type=number] { width: 100%; }
   button.plain { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink);
                  font: inherit; padding: 6px 12px; cursor: pointer; }
   #console { width: 100%; height: 100%; border: 0; background: var(--panel); }
@@ -128,6 +128,17 @@
       <div id="pusher"><span id="dart"></span><span id="shots">0 shots this boot</span></div>
       <p id="solenoid" class="indicator"><span id="solenoid-lamp" class="lamp"></span>
         <span id="solenoid-label"></span></p>
+    </section>
+    <section class="card">
+      <h2>Magazine</h2>
+      <label class="row">Size <input id="mag-size" type="number" min="1" max="200" value="18">
+        <span>darts</span></label>
+      <label class="row">Load rate <input id="mag-rate" type="range" min="10" max="200" step="5" value="100">
+        <span class="num" id="mag-rate-value">100 dps</span></label>
+      <div class="power"><button class="plain" id="reload"
+        title="A full magazine in: the spring feeds the breech at the load rate">Reload magazine</button></div>
+      <p id="magazine" class="indicator"><span id="breech-lamp" class="lamp"></span>
+        <span id="magazine-label">No magazine in: every push launches a dart.</span></p>
     </section>
     <section class="card">
       <h2>State</h2>
@@ -430,6 +441,21 @@ function drawLed(s) {
     : s.motors === undefined ? "LED" : "LED · not wired (set its pin in the console's Wiring tab)";
 }
 
+function drawMagazine(s) {
+  const m = s.magazine;
+  if (!m) return;
+  $("breech-lamp").classList.toggle("on", m.fitted && m.breech);
+  $("magazine-label").textContent = !m.fitted
+    ? "No magazine in: every push launches a dart."
+    : `${m.darts + (m.breech ? 1 : 0)} of ${m.capacity} left · ` +
+      `${m.breech ? "a dart in the breech" : "breech empty"} · ${m.launched} fired, ${m.dry} dry`;
+  if (document.activeElement !== $("mag-size")) $("mag-size").value = m.capacity;
+  if (document.activeElement !== $("mag-rate")) {
+    $("mag-rate").value = m.loadRate;
+    $("mag-rate-value").textContent = `${m.loadRate} dps`;
+  }
+}
+
 // A pulse is 25-40 ms and a refresh 100 ms, so the server hands over every pulse since the last
 // one; each keeps the lamp lit long enough to see.
 const PULSE_SHOWN_MS = 150;
@@ -444,9 +470,9 @@ function drawSolenoid(s) {
   const lit = Boolean(sol && (sol.on || performance.now() < solenoidLitUntil));
   $("solenoid-lamp").classList.toggle("hot", lit);
   $("solenoid-label").textContent = sol
-    ? `Solenoid · GPIO ${sol.pin} · ${lit ? "powered" : "off"}` +
+    ? (sol.esc ? `Pusher · ESC channel ${sol.esc.replace("esc", "")}` : `Solenoid · GPIO ${sol.pin}`) +
+      ` · ${lit ? "powered" : "off"}` +
       (lastPulseMs === null ? "" : ` · last pulse ${lastPulseMs.toFixed(1)} ms`)
-    : s.pusherEsc ? `Pusher on ESC channel ${s.pusherEsc.replace("esc", "")}, not a solenoid`
     : s.motors === undefined ? "Solenoid" : "Solenoid · not wired";
 }
 
@@ -483,6 +509,7 @@ async function poll() {
     drawScreen(s.panel);
     drawLed(s);
     drawSolenoid(s);
+    drawMagazine(s);
     drawWheels(s);
     drawStatus(s);
     if (s.motors !== undefined && wiringFor !== s.boots) {
@@ -490,8 +517,7 @@ async function poll() {
       const w = await call({ op: "wiring" });
       if (w.ok) buildSwitches(w.settings);
     }
-    // The simulator counts a solenoid's pulses; an ESC-driven pusher has only the firmware's count.
-    const shots = (s.pusherEsc ? s.runtimeShotCounter : s.extends) ?? 0;
+    const shots = s.extends ?? 0;
     $("shots").textContent = `${shots} shot${shots === 1 ? "" : "s"} this boot`;
     if (shots > shownShots) { $("dart").classList.remove("fired"); void $("dart").offsetWidth; $("dart").classList.add("fired"); }
     shownShots = shots;
@@ -508,6 +534,16 @@ async function poll() {
   }
   setTimeout(poll, POLL_MS);
 }
+
+$("mag-size").addEventListener("change", () => {
+  const size = Math.max(1, Math.min(200, Math.round(Number($("mag-size").value) || 1)));
+  act({ op: "magazine", capacity: size });
+});
+$("mag-rate").addEventListener("input", () => {
+  $("mag-rate-value").textContent = `${$("mag-rate").value} dps`;
+});
+$("mag-rate").addEventListener("change", () => act({ op: "magazine", loadRate: Number($("mag-rate").value) }));
+$("reload").addEventListener("click", () => act({ op: "reload" }));
 
 $("pot").addEventListener("input", () => {
   $("pot-value").textContent = `${$("pot").value}%`;

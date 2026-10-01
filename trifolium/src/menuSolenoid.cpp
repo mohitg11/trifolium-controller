@@ -89,6 +89,16 @@ static ToggleItem pusherReverseItem("Reverse Direction", "device:pusherReverseDi
                                     &deviceSettings.pusherReverseDirection);
 static NumericItem<uint16_t> pusherDebounceItem("Debounce (ms)", "device:pusherDebounceTime_ms",
                                                 &deviceSettings.pusherDebounceTime_ms, 0, 200, 1);
+static NumericItem<uint16_t> dartDebounceItem("Dart Debounce (ms)", "device:dartSwitchDebounce_ms",
+                                              &deviceSettings.dartSwitchDebounce_ms, 0, 50, 1);
+
+// The stored pin, like ledIsWired() in menuDevice.cpp, so the rule beside it can say the same.
+static bool dartSwitchIsWired()
+{
+    return deviceSettings.dartSwitchPin != PIN_NOT_USED;
+}
+static constexpr VisibilityTerm kDartSwitchWiredTerms[] = {{"device:dartSwitchPin", "255", true}};
+static constexpr VisibilityCondition kDartSwitchWired = {kDartSwitchWiredTerms, 1};
 
 static bool pusherIsSolenoid()
 {
@@ -105,6 +115,7 @@ struct SolenoidItemsInit
         solenoidHighVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidExtendLowItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidLowVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
+        dartDebounceItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
     }
 } solenoidItemsInit;
 
@@ -114,6 +125,8 @@ static MenuItem* solenoidItems[] = {
     &pusherTypeItem,          &pusherReverseItem,      &pusherDebounceItem,
     &solenoidRetractItem,     &solenoidExtendHighItem, &solenoidHighVoltageItem,
     &solenoidExtendLowItem,   &solenoidLowVoltageItem, &vibrationPulseItem,
+    &dartDebounceItem,
 };
 // Non-static: referenced by menu.cpp's Advanced submenu assembly.
-SubmenuItem solenoidSubmenu("Solenoid / Pusher", solenoidItems, 9);
+SubmenuItem solenoidSubmenu("Solenoid / Pusher", solenoidItems,
+                            sizeof(solenoidItems) / sizeof(solenoidItems[0]));

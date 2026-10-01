@@ -33,6 +33,9 @@ extern burstFireType_t burstMode;
 extern bool safetyEngaged;
 extern uint8_t speedPotPin;
 extern int32_t speedPotRpm;
+extern uint8_t dartSwitchPin;
+extern bool dartPresent;
+extern bool breechEmptiedSincePush;
 bool idleHoldWanted();
 bool menuIsOpen();
 bool revControlAllowed();
@@ -353,6 +356,19 @@ void handleSerialCommands()
             Serial.print("null");
         else
             Serial.print(speedPotRpm);
+        Serial.print(",\"dart\":");
+        if (dartSwitchPin == PIN_NOT_USED)
+        {
+            Serial.print("null");
+        }
+        else
+        {
+            Serial.print("{\"present\":");
+            Serial.print(dartPresent ? "true" : "false");
+            Serial.print(",\"emptiedSincePush\":");
+            Serial.print(breechEmptiedSincePush ? "true" : "false");
+            Serial.print('}');
+        }
         Serial.print(",\"motors\":[");
         for (int i = 0; i < 4; i++)
         {

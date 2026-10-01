@@ -87,6 +87,11 @@ void setPinFunction(uint8_t pin, uint8_t gpioFunction);
 // gate. Survives powerOn(); pass nullptr to clear.
 void setWriteHook(std::function<void(uint8_t pin, bool level)> hook);
 
+// Asked for a pin's level when nothing outside the chip drives it - how a modelled part such as a
+// magazine's dart switch answers as time passes. Return 0 or 1, or -1 to leave the pin to its pull.
+// Survives powerOn(); pass nullptr to clear.
+void setInputHook(std::function<int(uint8_t pin)> hook);
+
 // ---- USB serial --------------------------------------------------------------------------------
 
 // Host to device: queued for Serial.read().

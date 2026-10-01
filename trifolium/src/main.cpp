@@ -66,6 +66,7 @@ uint8_t menuButtonPin = PIN_NOT_USED;
 uint8_t triggerSwitchPin = PIN_NOT_USED;
 uint8_t revSwitchPin = PIN_NOT_USED;
 uint8_t cycleSwitchPin = PIN_NOT_USED;
+uint8_t dartSwitchPin = PIN_NOT_USED;
 uint8_t idleSwitchPin = PIN_NOT_USED;
 uint8_t safetySwitchPin = PIN_NOT_USED;
 
@@ -176,6 +177,11 @@ bool idleHoldActive = false;
 // core 1's first frame is already right - and read on either core through effectiveBurstMode().
 bool safetyEngaged = false;
 
+bool dartPresent = false;
+bool breechEmptiedSincePush = true; // cleared at each push, set by any empty reading
+static bool dartShownLastTick = false;
+static uint32_t dartShownSince_ms = 0;
+
 // SAFE while the switch is held, the selected mode otherwise. Every reader of the live mode goes
 // through this, so the override reaches firing, the flywheels and the panel from one place.
 burstFireType_t effectiveBurstMode(burstFireType_t selected)
@@ -228,6 +234,7 @@ void cycleFiringMode();
 uint8_t selectShotProfileAtBoot();
 bool fwControlLoop();
 void mainFiringLogic();
+static bool dartSwitchShowsDart();
 void updateSpeedPot();
 void resetFWControl();
 void registerShot();
@@ -752,6 +759,11 @@ void setup()
         cycleSwitch.interval(deviceSettings.pusherDebounceTime_ms);
         cycleSwitch.setPressedState(deviceSettings.cycleSwitchNormallyClosed);
     }
+    if (pinDefined(dartSwitchPin))
+    {
+        pinMode(dartSwitchPin, INPUT_PULLUP);
+        dartShownLastTick = dartPresent = dartSwitchShowsDart();
+    }
     if (pinDefined(idleSwitchPin))
     {
         idleSwitch.attach(idleSwitchPin, INPUT_PULLUP);
@@ -1019,6 +1031,31 @@ void loop()
     }
 }
 
+// A switch to ground, like the others: grounded means a dart, unless it is one that opens instead.
+static bool dartSwitchShowsDart()
+{
+    return (digitalRead(dartSwitchPin) == LOW) != deviceSettings.dartSwitchNormallyClosed;
+}
+
+static void updateDartSwitch()
+{
+    if (!pinDefined(dartSwitchPin))
+        return;
+    const bool shows = dartSwitchShowsDart();
+    if (shows && !dartShownLastTick)
+        dartShownSince_ms = time_ms;
+    dartShownLastTick = shows;
+    if (!shows)
+        breechEmptiedSincePush = true;
+    const bool present =
+        shows && time_ms - dartShownSince_ms >= deviceSettings.dartSwitchDebounce_ms;
+    if (present != dartPresent)
+    {
+        dartPresent = present;
+        logger.info(present ? "Dart in the breech" : "Breech empty");
+    }
+}
+
 void mainFiringLogic()
 {
     if (pinDefined(revSwitchPin))
@@ -1071,6 +1108,7 @@ void mainFiringLogic()
         }
         safetyEngaged = safetySwitch.isPressed();
     }
+    updateDartSwitch();
     int8_t previousFiringMode = firingMode;
     updateFiringMode();
     burstMode = effectiveBurstMode(activeProfile.fireModes[firingMode].burstMode);
@@ -1549,6 +1587,7 @@ bool fwControlLoop()
 
                 pusher->drive(1.0f, deviceSettings.pusherReverseDirection);
                 firing = true;
+                breechEmptiedSincePush = false;
                 shotsToFire = max(0, shotsToFire - 1);
                 pusherTimer_ms = time_ms;
                 solenoidExtendTime_ms =

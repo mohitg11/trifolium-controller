@@ -42,6 +42,7 @@ struct DeviceSettings
     uint8_t triggerSwitchPin;
     uint8_t revSwitchPin;
     uint8_t cycleSwitchPin;
+    uint8_t dartSwitchPin; // reads whether a dart is sitting in the breech
     uint8_t idleSwitchPin; // holds flywheels at idle RPM manually, instead of the dwell/idle timers
     uint8_t safetySwitchPin; // engaged, it forces the effective firing mode to SAFE
     uint8_t select0Pin;
@@ -51,6 +52,7 @@ struct DeviceSettings
     bool revSwitchNormallyClosed;
     bool triggerSwitchNormallyClosed;
     bool cycleSwitchNormallyClosed;
+    bool dartSwitchNormallyClosed;
     bool idleSwitchNormallyClosed;
     bool safetySwitchNormallyClosed;
     bool menuButtonNormallyClosed;
@@ -76,6 +78,7 @@ struct DeviceSettings
     uint16_t debounceTime_ms;
     uint32_t menuButtonHoldTime_ms;
     uint16_t pusherDebounceTime_ms;
+    uint16_t dartSwitchDebounce_ms; // how long a dart must show without a break to count
     int voltageAveragingWindow;
 
     bool useRpmBaseShotCounter; // if true, shot counter increases based on detected rpm drop,

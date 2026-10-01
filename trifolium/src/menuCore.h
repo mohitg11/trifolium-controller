@@ -17,13 +17,14 @@
 // helpers, and the reusable non-domain-specific MenuItem subclasses. The navigation engine itself
 // lives in menuCore.cpp.
 
-// The nine pins as resolved for this boot - see the definitions in main.cpp. Read these, not
+// The ten switch pins as resolved for this boot - see the definitions in main.cpp. Read these, not
 // deviceSettings, for anything that attaches or polls hardware: a pin the conflict engine detached
 // is PIN_NOT_USED here while deviceSettings still carries what the user asked for.
 extern uint8_t menuButtonPin;
 extern uint8_t triggerSwitchPin;
 extern uint8_t revSwitchPin;
 extern uint8_t cycleSwitchPin;
+extern uint8_t dartSwitchPin;
 extern uint8_t idleSwitchPin;
 extern uint8_t safetySwitchPin;
 extern uint8_t selectPins[3];

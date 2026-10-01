@@ -517,7 +517,7 @@ static AdcPinItem speedPotPinItem("Speed Pot Pin", "device:speedPotPin",
 static PinItem escEnablePinItem("ESC Enable Pin", "device:escEnablePin",
                                 &deviceSettings.escEnablePin);
 
-// The nine switch/button pins, in the order the conflict engine resolves them (pinConflicts.cpp).
+// The ten switch/button pins, in the order the conflict engine resolves them (pinConflicts.cpp).
 // Safety first, because a detached safety switch reads as disengaged.
 static PinItem safetyPinItem("Safety Pin", "device:safetySwitchPin",
                              &deviceSettings.safetySwitchPin);
@@ -527,6 +527,7 @@ static PinItem revPinItem("Rev Pin", "device:revSwitchPin", &deviceSettings.revS
 static PinItem menuButtonPinItem("Menu Button Pin", "device:menuButtonPin",
                                  &deviceSettings.menuButtonPin);
 static PinItem cyclePinItem("Cycle Pin", "device:cycleSwitchPin", &deviceSettings.cycleSwitchPin);
+static PinItem dartPinItem("Dart Switch Pin", "device:dartSwitchPin", &deviceSettings.dartSwitchPin);
 static PinItem idlePinItem("Idle Pin", "device:idleSwitchPin", &deviceSettings.idleSwitchPin);
 static PinItem select0PinItem("Select 0 Pin", "device:select0Pin", &deviceSettings.select0Pin);
 static PinItem select1PinItem("Select 1 Pin", "device:select1Pin", &deviceSettings.select1Pin);
@@ -561,6 +562,9 @@ static PolarityItem menuButtonPolarityItem("Menu Button Normally Closed",
                                            &deviceSettings.menuButtonNormallyClosed);
 static PolarityItem cyclePolarityItem("Cycle Normally Closed", "device:cycleSwitchNormallyClosed",
                                       &deviceSettings.cycleSwitchNormallyClosed);
+static PolarityItem dartPolarityItem("Dart Switch Normally Closed",
+                                     "device:dartSwitchNormallyClosed",
+                                     &deviceSettings.dartSwitchNormallyClosed);
 static PolarityItem idlePolarityItem("Idle Normally Closed", "device:idleSwitchNormallyClosed",
                                      &deviceSettings.idleSwitchNormallyClosed);
 static PolarityItem safetyPolarityItem("Safety Normally Closed",
@@ -577,10 +581,11 @@ static MenuItem* wiringItems[] = {&boardIdItem,            &wiringConfiguredItem
                                   &ledDataPinItem,         &safetyPinItem,
                                   &triggerPinItem,         &revPinItem,
                                   &menuButtonPinItem,      &cyclePinItem,
-                                  &idlePinItem,            &select0PinItem,
-                                  &select1PinItem,         &select2PinItem,
-                                  &triggerPolarityItem,    &revPolarityItem,
-                                  &menuButtonPolarityItem, &cyclePolarityItem,
+                                  &dartPinItem,            &idlePinItem,
+                                  &select0PinItem,         &select1PinItem,
+                                  &select2PinItem,         &triggerPolarityItem,
+                                  &revPolarityItem,        &menuButtonPolarityItem,
+                                  &cyclePolarityItem,      &dartPolarityItem,
                                   &idlePolarityItem,       &safetyPolarityItem};
 static SubmenuItem wiringSubmenu("Wiring", wiringItems,
                                  sizeof(wiringItems) / sizeof(wiringItems[0]));

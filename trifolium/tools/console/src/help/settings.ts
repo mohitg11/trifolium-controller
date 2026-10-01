@@ -87,6 +87,8 @@ export const SETTING_HELP: Record<string, string> = {
   "device:pusherType":
     "Solenoid applies the voltage-compensated extend times below. None leaves them out.",
   "device:pusherReverseDirection": "Flips the pusher motor's direction, for a motor wired backwards.",
+  "device:dartSwitchDebounce_ms":
+    "How long the dart switch must show a dart without a break before it counts. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
   "device:pusherDebounceTime_ms": "Debounce for the pusher's own cycle-detection switch.",
   "device:solenoidRetractTime_ms":
     "How long the pusher takes to retract before the next shot. With the extend time, it sets the highest DPS any mode can reach.",
@@ -126,6 +128,10 @@ export const SETTING_HELP: Record<string, string> = {
   "device:i2cSclPin":
     "The clock pin of the screen's I2C bus. SDA and SCL must be a pair the RP2040 can use together.",
   "device:batteryAdcPin": "The analog pin, GPIO 26 to 29, that reads the battery voltage divider.",
+  "device:dartSwitchPin":
+    "The pin of a switch or sensor that sees a dart sitting in the breech, ready to be pushed.",
+  "device:dartSwitchNormallyClosed":
+    "On if the dart switch opens, rather than closes to ground, when a dart is in the breech.",
   "device:speedPotPin":
     "The analog pin, GPIO 26 to 29, that reads a speed pot's wiper. With one wired, the pot sets the rev RPM in place of the profile's own.",
   "device:escEnablePin":

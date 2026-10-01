@@ -32,6 +32,7 @@ void clearWiring(DeviceSettings& s)
     s.triggerSwitchPin = PIN_NOT_USED;
     s.revSwitchPin = PIN_NOT_USED;
     s.cycleSwitchPin = PIN_NOT_USED;
+    s.dartSwitchPin = PIN_NOT_USED;
     s.idleSwitchPin = PIN_NOT_USED;
     s.safetySwitchPin = PIN_NOT_USED;
     s.select0Pin = PIN_NOT_USED;
@@ -88,6 +89,7 @@ DeviceSettings factoryResetSettings()
     s.triggerSwitchPin = deviceSettings.triggerSwitchPin;
     s.revSwitchPin = deviceSettings.revSwitchPin;
     s.cycleSwitchPin = deviceSettings.cycleSwitchPin;
+    s.dartSwitchPin = deviceSettings.dartSwitchPin;
     s.idleSwitchPin = deviceSettings.idleSwitchPin;
     s.safetySwitchPin = deviceSettings.safetySwitchPin;
     s.select0Pin = deviceSettings.select0Pin;
@@ -107,6 +109,7 @@ DeviceSettings factoryResetSettings()
     s.triggerSwitchNormallyClosed = deviceSettings.triggerSwitchNormallyClosed;
     s.revSwitchNormallyClosed = deviceSettings.revSwitchNormallyClosed;
     s.cycleSwitchNormallyClosed = deviceSettings.cycleSwitchNormallyClosed;
+    s.dartSwitchNormallyClosed = deviceSettings.dartSwitchNormallyClosed;
     s.idleSwitchNormallyClosed = deviceSettings.idleSwitchNormallyClosed;
     s.safetySwitchNormallyClosed = deviceSettings.safetySwitchNormallyClosed;
 
@@ -149,6 +152,7 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["triggerSwitchPin"] = settings.triggerSwitchPin;
     doc["revSwitchPin"] = settings.revSwitchPin;
     doc["cycleSwitchPin"] = settings.cycleSwitchPin;
+    doc["dartSwitchPin"] = settings.dartSwitchPin;
     doc["idleSwitchPin"] = settings.idleSwitchPin;
     doc["safetySwitchPin"] = settings.safetySwitchPin;
     doc["select0Pin"] = settings.select0Pin;
@@ -158,6 +162,7 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["revSwitchNormallyClosed"] = settings.revSwitchNormallyClosed;
     doc["triggerSwitchNormallyClosed"] = settings.triggerSwitchNormallyClosed;
     doc["cycleSwitchNormallyClosed"] = settings.cycleSwitchNormallyClosed;
+    doc["dartSwitchNormallyClosed"] = settings.dartSwitchNormallyClosed;
     doc["idleSwitchNormallyClosed"] = settings.idleSwitchNormallyClosed;
     doc["safetySwitchNormallyClosed"] = settings.safetySwitchNormallyClosed;
     doc["menuButtonNormallyClosed"] = settings.menuButtonNormallyClosed;
@@ -178,6 +183,7 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["debounceTime_ms"] = settings.debounceTime_ms;
     doc["menuButtonHoldTime_ms"] = settings.menuButtonHoldTime_ms;
     doc["pusherDebounceTime_ms"] = settings.pusherDebounceTime_ms;
+    doc["dartSwitchDebounce_ms"] = settings.dartSwitchDebounce_ms;
     doc["voltageAveragingWindow"] = settings.voltageAveragingWindow;
     doc["useRpmBaseShotCounter"] = settings.useRpmBaseShotCounter;
     doc["goodRpmShotReads"] = settings.goodRpmShotReads;
@@ -293,6 +299,7 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
     out.triggerSwitchPin = doc["triggerSwitchPin"] | out.triggerSwitchPin;
     out.revSwitchPin = doc["revSwitchPin"] | out.revSwitchPin;
     out.cycleSwitchPin = doc["cycleSwitchPin"] | out.cycleSwitchPin;
+    out.dartSwitchPin = doc["dartSwitchPin"] | out.dartSwitchPin;
     out.idleSwitchPin = doc["idleSwitchPin"] | out.idleSwitchPin;
     // Absent on a config written before the safety switch existed, leaving it unused - so a stored
     // wiring that predates it keeps behaving exactly as it did, with no schema bump to carry.
@@ -306,6 +313,7 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
         doc["triggerSwitchNormallyClosed"] | out.triggerSwitchNormallyClosed;
     out.cycleSwitchNormallyClosed =
         doc["cycleSwitchNormallyClosed"] | out.cycleSwitchNormallyClosed;
+    out.dartSwitchNormallyClosed = doc["dartSwitchNormallyClosed"] | out.dartSwitchNormallyClosed;
     out.idleSwitchNormallyClosed = doc["idleSwitchNormallyClosed"] | out.idleSwitchNormallyClosed;
     out.safetySwitchNormallyClosed =
         doc["safetySwitchNormallyClosed"] | out.safetySwitchNormallyClosed;
@@ -338,6 +346,7 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
     out.debounceTime_ms = doc["debounceTime_ms"] | out.debounceTime_ms;
     out.menuButtonHoldTime_ms = doc["menuButtonHoldTime_ms"] | out.menuButtonHoldTime_ms;
     out.pusherDebounceTime_ms = doc["pusherDebounceTime_ms"] | out.pusherDebounceTime_ms;
+    out.dartSwitchDebounce_ms = doc["dartSwitchDebounce_ms"] | out.dartSwitchDebounce_ms;
     out.voltageAveragingWindow = doc["voltageAveragingWindow"] | out.voltageAveragingWindow;
     out.useRpmBaseShotCounter = doc["useRpmBaseShotCounter"] | out.useRpmBaseShotCounter;
     out.goodRpmShotReads = doc["goodRpmShotReads"] | out.goodRpmShotReads;

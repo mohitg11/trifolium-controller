@@ -18,6 +18,7 @@ extern uint8_t menuButtonPin;
 extern uint8_t triggerSwitchPin;
 extern uint8_t revSwitchPin;
 extern uint8_t cycleSwitchPin;
+extern uint8_t dartSwitchPin;
 extern uint8_t idleSwitchPin;
 extern uint8_t safetySwitchPin;
 extern uint8_t selectPins[3];
@@ -30,7 +31,7 @@ extern bool wiringLive;
 
 namespace
 {
-// 9 switch pins + 4 motors + the pusher + 2 I2C + 2 ADC + the LED + ESC enable is 20, and every
+// 10 switch pins + 4 motors + the pusher + 2 I2C + 2 ADC + the LED + ESC enable is 21, and every
 // one of those can also carry a warning; nothing reaches the cap in practice.
 const uint8_t kMaxEntries = 40;
 PinConflicts::Entry entries_[kMaxEntries];
@@ -48,7 +49,7 @@ struct PinSlot
     const char* field;
 };
 
-const uint8_t kSlotCount = 9;
+const uint8_t kSlotCount = 10;
 
 // Seeds the runtime pins from the stored ones and returns the slot table. Splitting live from
 // stored here is the whole safety property: everything below writes only through `live`.
@@ -60,6 +61,7 @@ void seedSlots(PinSlot* out)
     out[n++] = {&revSwitchPin, &deviceSettings.revSwitchPin, "revSwitchPin"};
     out[n++] = {&menuButtonPin, &deviceSettings.menuButtonPin, "menuButtonPin"};
     out[n++] = {&cycleSwitchPin, &deviceSettings.cycleSwitchPin, "cycleSwitchPin"};
+    out[n++] = {&dartSwitchPin, &deviceSettings.dartSwitchPin, "dartSwitchPin"};
     out[n++] = {&idleSwitchPin, &deviceSettings.idleSwitchPin, "idleSwitchPin"};
     out[n++] = {&selectPins[0], &deviceSettings.select0Pin, "select0Pin"};
     out[n++] = {&selectPins[1], &deviceSettings.select1Pin, "select1Pin"};
