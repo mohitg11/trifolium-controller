@@ -239,6 +239,7 @@ uint8_t selectShotProfileAtBoot();
 bool fwControlLoop();
 void mainFiringLogic();
 static bool dartSwitchShowsDart();
+static bool dartSensingOn();
 void updateSpeedPot();
 void resetFWControl();
 void registerShot();
@@ -372,7 +373,11 @@ void applyMaxAchievableDps()
 {
     float extendAtVoltage_ms =
         batteryMonitor->getVoltage_mv() * solenoidVoltageTimeSlope + solenoidVoltageTimeIntercept;
-    float cycle_ms = extendAtVoltage_ms + deviceSettings.solenoidRetractTime_ms;
+    // With Dart Sensing a push can end the tick after Min Push, so the fastest cycle is that short.
+    float push_ms = dartSensingOn()
+                        ? min(extendAtVoltage_ms, deviceSettings.minPushTime_ms + 1.0f)
+                        : extendAtVoltage_ms;
+    float cycle_ms = push_ms + deviceSettings.solenoidRetractTime_ms;
     maxAchievableDPS = cycle_ms > 0 ? 1000.0f / cycle_ms : 0;
 }
 

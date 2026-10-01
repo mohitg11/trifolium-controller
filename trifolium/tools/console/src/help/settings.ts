@@ -97,7 +97,7 @@ export const SETTING_HELP: Record<string, string> = {
     "How long the dart switch must show a dart without a break before it counts. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
   "device:pusherDebounceTime_ms": "Debounce for the pusher's own cycle-detection switch.",
   "device:solenoidRetractTime_ms":
-    "How long the pusher takes to retract before the next shot. With the extend time, it sets the highest DPS any mode can reach.",
+    "How long the pusher takes to retract before the next shot. With the extend time, or Min Push while Dart Sensing is on, it sets the highest DPS any mode can reach.",
   "device:solenoidExtendTimeHigh_ms":
     "How long the solenoid stays extended when the battery is at or above the High V Threshold.",
   "device:solenoidExtendTimeHighVoltage_mv": "The battery voltage from which the High V extend time applies.",

@@ -179,6 +179,28 @@ def test_with_no_target_dps_pulling_back_early_fires_as_fast_as_the_retract_allo
     assert all(abs(gap - 40) <= 2 for gap in gaps(b)), gaps(b)
 
 
+def dps_ceiling(b):
+    """The highest Target DPS the menu and console offer an AUTO mode."""
+    auto = next(c for c in schema(b)["fireModeCaps"] if c["burstMode"] == "auto")
+    return next(f for f in auto["fields"] if f["key"] == "profile:fireModes[*].targetDPS")["hi"]
+
+
+@pytest.mark.parametrize("sensing, ceiling", [(False, 17), (True, 25)])
+def test_the_target_dps_ceiling_counts_a_push_as_min_push_while_dart_sensing_is_on(
+        blaster, sensing, ceiling):
+    """A 27 ms push at the simulator's 16.4 V, or 9 ms once Min Push lets the dart go, then the
+    30 ms retract."""
+    b = one_mode(blaster, "auto", device={"dartSensing": sensing}, burstLength=100)
+    assert dps_ceiling(b) == ceiling
+
+
+def test_a_target_dps_past_the_full_push_rate_is_reached_with_dart_sensing(blaster):
+    b = loaded(one_mode(blaster, "auto", burstLength=100, targetDPS=25), 10, load_rate=200)
+    fire(b, 500)
+    assert len(b.extends()) >= 5
+    assert all(abs(gap - 40) <= 2 for gap in gaps(b)), gaps(b)
+
+
 @pytest.mark.parametrize("min_push, leave_ms, expected_ms", [
     (0, 4, 4),    # as soon as the dart has gone
     (8, 4, 9),    # gone sooner than Min Push, so at the first tick after it
