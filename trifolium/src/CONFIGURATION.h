@@ -92,7 +92,7 @@ inline const DeviceSettings kDefaultDeviceSettings = {
             BOOT_ACTION_BOOTLOADER,      // menu
             BOOT_ACTION_ESC_PASSTHROUGH, // trigger
             BOOT_ACTION_BOOTLOADER,      // rev
-            BOOT_ACTION_NONE,            // cycle
+            BOOT_ACTION_NONE,            // cycle, which has no boot action
             BOOT_ACTION_NONE,            // idle
             BOOT_ACTION_NONE,            // select0
             BOOT_ACTION_NONE,            // select1
