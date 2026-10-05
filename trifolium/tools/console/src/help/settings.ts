@@ -40,7 +40,7 @@ export const SETTING_HELP: Record<string, string> = {
   "profile:revSafetyTimeout_ms":
     "Idles the flywheels if Rev is held this long without a shot, so they are not left spinning by accident. 0 turns it off.",
   "device:firingRPMTolerance":
-    "How far below the target a motor may be and still count as at speed. Larger fires sooner into the spin-up.",
+    "How far below the target a motor may be and still count as at speed: checked as the wheels spin up, and again before the first shot of each trigger press. Larger fires sooner into the spin-up.",
   "device:minFiringRPM":
     "A floor under the at-speed point, so a low target cannot let a shot go at a uselessly low RPM. 0 removes it.",
   "device:speedPotMinRPM":

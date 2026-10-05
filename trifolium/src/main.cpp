@@ -185,6 +185,11 @@ static bool dartShownLastTick = false;
 static uint32_t dartShownSince_ms = 0;
 // When the pusher became free to push with no dart to push; 0 while no shot is waiting for one.
 uint32_t dartWaitSince_ms = 0;
+// Set when a trigger event queues shots into an empty queue, cleared by the push: the first push
+// of each press waits for the wheels to be back at speed, and the rest of a burst doesn't.
+static bool pushWaitsForSpeed = false;
+// When that push started waiting for the wheels; 0 while it isn't.
+static uint32_t speedWaitSince_ms = 0;
 // A rev is being held off for want of a dart, so it is logged once rather than every tick.
 static bool revHeldForDart = false;
 
@@ -301,6 +306,16 @@ int32_t atSpeedRpm(uint8_t motorIndex)
 {
     return max((int32_t)motorArr[motorIndex].targetRPM - deviceSettings.firingRPMTolerance,
                deviceSettings.minFiringRPM);
+}
+
+static bool wheelsAtSpeed()
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (motorsEnabled[i] && (int32_t)motorArr[i].motorRPM <= atSpeedRpm(i))
+            return false;
+    }
+    return true;
 }
 
 void logData()
@@ -1090,6 +1105,35 @@ static bool dartHasLeft()
            !dartSwitchShowsDart();
 }
 
+// Plasma times its own pushes against its own ramp, so it is left alone, as by the rampup timeout.
+static bool wheelsReadyToPush()
+{
+    return !pushWaitsForSpeed || behaviorFor(burstMode).managesOwnRevLifecycle() ||
+           wheelsAtSpeed();
+}
+
+// A press the wheels don't get back to speed for within the rampup timeout is dropped, as a
+// spin-up that doesn't get there is.
+static void waitForSpeed()
+{
+    if (speedWaitSince_ms == 0)
+    {
+        speedWaitSince_ms = time_ms;
+        return;
+    }
+    if (time_ms - speedWaitSince_ms < deviceSettings.rampupTimeout_ms)
+        return;
+    for (int i = 0; i < 4; i++)
+    {
+        if (motorsEnabled[i] && (int32_t)motorArr[i].motorRPM <= atSpeedRpm(i))
+            logger.warn("Motor ", i + 1, " failed to reach target speed! motorRPM=",
+                        motorArr[i].motorRPM, " firingRPM=", atSpeedRpm(i));
+    }
+    logger.warn("Dropping ", shotsToFire, " queued shots");
+    shotsToFire = 0;
+    speedWaitSince_ms = 0;
+}
+
 static void waitForDart()
 {
     if (dartWaitSince_ms == 0)
@@ -1213,7 +1257,10 @@ void mainFiringLogic()
             flywheelState == STATE_FULLSPEED,
             safetyEngaged,
         };
+        const bool queueWasEmpty = shotsToFire <= 0;
         behaviorFor(burstMode).update(ctx, event);
+        if (queueWasEmpty && shotsToFire > 0)
+            pushWaitsForSpeed = true;
     }
     batteryMonitor->update();
     updateSpeedPot();
@@ -1453,7 +1500,10 @@ bool fwControlLoop()
     }
 
     if (shotsToFire <= 0 || flywheelState != STATE_FULLSPEED)
+    {
         dartWaitSince_ms = 0;
+        speedWaitSince_ms = 0;
+    }
 
     switch (flywheelState)
     {
@@ -1597,11 +1647,7 @@ bool fwControlLoop()
                                                        : motorArr[i].revRPM;
 
         // If all motors are at target RPM, update the blaster's state to FULLSPEED.
-        if ((!motorsEnabled[0] || (int32_t)motorArr[0].motorRPM > atSpeedRpm(0)) &&
-            (!motorsEnabled[1] || (int32_t)motorArr[1].motorRPM > atSpeedRpm(1)) &&
-            (!motorsEnabled[2] || (int32_t)motorArr[2].motorRPM > atSpeedRpm(2)) &&
-            (!motorsEnabled[3] || (int32_t)motorArr[3].motorRPM > atSpeedRpm(3))
-        ) {
+        if (wheelsAtSpeed()) {
             flywheelState = STATE_FULLSPEED;
             logger.info("STATE_FULLSPEED transition 1");
         } else if (!behaviorFor(burstMode).managesOwnRevLifecycle() &&
@@ -1650,13 +1696,19 @@ bool fwControlLoop()
                                     time_ms > pusherTimer_ms +
                                                   deviceSettings.solenoidRetractTime_ms +
                                                   computePusherDwellPadding_ms();
-            if (pusherFree && !dartReadyToPush())
+            if (pusherFree && !wheelsReadyToPush())
+            {
+                waitForSpeed();
+            }
+            else if (pusherFree && !dartReadyToPush())
             {
                 waitForDart();
             }
             else if (pusherFree)
             { // extend solenoid
                 dartWaitSince_ms = 0;
+                speedWaitSince_ms = 0;
+                pushWaitsForSpeed = false;
                 if (!deviceSettings.useRpmBaseShotCounter)
                 {
                     registerShot();
