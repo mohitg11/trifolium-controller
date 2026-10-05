@@ -1240,7 +1240,10 @@ void updateSpeedPot()
     const int32_t lo = deviceSettings.speedPotMinRPM;
     speedPotRpm = lo + (int32_t)((deviceSettings.speedPotMaxRPM - lo) * fromLow);
 
-    const int32_t floorRpm = deviceSettings.minFiringRPM + deviceSettings.firingRPMTolerance;
+    // A target on Min Firing RPM would leave the wheels nothing to clear it by, so the pot keeps a
+    // margin above it: the tolerance, up to 1000 RPM.
+    const int32_t floorRpm =
+        deviceSettings.minFiringRPM + min(deviceSettings.firingRPMTolerance, (int32_t)1000);
     bool changed = false;
     for (int i = 0; i < 4; i++)
     {

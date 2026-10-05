@@ -422,8 +422,13 @@ function drawWheels(s) {
     <div class="wheel"><span>Motor ${m.i + 1}${escNote(m.esc)}</span>
       <div class="bar"><div class="fill" style="width:${(100 * m.rpm) / scale}%"></div>
         <div class="target" style="left:${(100 * m.targetRPM) / scale}%"></div></div>
-      <span class="num">${Math.round(m.rpm).toLocaleString()} / ${Math.round(m.targetRPM).toLocaleString()}</span>
+      <span class="num">${Math.round(m.rpm).toLocaleString()} / ${Math.round(m.targetRPM).toLocaleString()}${lastDart(m)}</span>
     </div>`).join("");
+}
+
+// The wheel's real speed as the last dart went through it, which the RPM the firmware reads lags.
+function lastDart(m) {
+  return m.lastDartRpm > 0 ? `<small>last dart at ${Math.round(m.lastDartRpm).toLocaleString()}</small>` : "";
 }
 
 // A real ESC ignores the signal while it starts up, and has nothing to start on without the pack.

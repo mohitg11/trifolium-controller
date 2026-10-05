@@ -78,6 +78,14 @@ def test_the_pot_never_takes_a_target_below_what_can_fire_and_the_wheels_reach_s
     assert b.run_until_peek("flywheelState", FULLSPEED, limit_ms=2000)
 
 
+@pytest.mark.parametrize("fraction, rpm", [(0.0, 19000), (1.0, 30000)])
+def test_a_wide_tolerance_keeps_the_pot_floor_only_1000_above_min_firing_rpm(blaster, fraction, rpm):
+    b = potted(blaster, fraction, {"minFiringRPM": 18000, "firingRPMTolerance": 15000})
+    assert revs(b) == [rpm, rpm]
+    b.press("rev")
+    assert b.run_until_peek("flywheelState", FULLSPEED, limit_ms=2000)
+
+
 def test_a_stage_2_ratio_never_takes_a_target_past_what_the_motor_can_reach(blaster):
     b = potted(blaster, 1.0, {**STAGE2_MOTOR4, "speedPotMaxRPM": 40000},
                {"speedPotStage2Ratio": 2.0})

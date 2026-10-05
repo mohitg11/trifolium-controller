@@ -833,6 +833,8 @@ def test_the_panel_offers_a_button_for_each_wired_switch_and_a_held_trigger_fire
     page.mouse.up()
     assert served.bench("extends")["at_us"]
     expect(page.get_by_text(re.compile(r"^Motor 2"))).to_be_visible()
+    expect(page.locator("#wheels small").filter(has_text=re.compile(r"^last dart at [\d,]+$"))
+           .first).to_be_visible()
     # Each pulse is the extend time for the pack: 25 ms at 16.8 V to 40 ms at 11.8 V by default, so
     # about 26 ms at the simulator's 16.4 V.
     expect(page.locator("#solenoid-label")).to_have_text(

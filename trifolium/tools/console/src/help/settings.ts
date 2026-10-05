@@ -44,7 +44,7 @@ export const SETTING_HELP: Record<string, string> = {
   "device:minFiringRPM":
     "A floor under the at-speed point, so a low target cannot let a shot go at a uselessly low RPM. 0 removes it.",
   "device:speedPotMinRPM":
-    "Stage 1's rev RPM with the speed pot turned all the way down. Never below what Min Firing RPM lets fire.",
+    "Stage 1's rev RPM with the speed pot turned all the way down. Never below Min Firing RPM plus the smaller of the Firing RPM Tol and 1000 RPM, so the wheels can always reach firing speed.",
   "device:speedPotMaxRPM": "Stage 1's rev RPM with the speed pot turned all the way up.",
   "profile:speedPotStage2Ratio":
     "With a speed pot, stage 2's rev RPM as a multiple of stage 1's: 1.2 spins stage 2 20% faster. A single-stage blaster ignores it.",

@@ -405,6 +405,7 @@ class Host
                 w["attached"] = wheels_[i].attached;
                 w["rpm"] = wheels_[i].rpm;
                 w["peak"] = wheels_[i].peakRpm;
+                w["lastDartRpm"] = wheels_[i].lastDartRpm;
                 w["throttle"] = wheels_[i].throttle;
                 w["kv"] = wheels_[i].kv;
                 w["polePairs"] = wheels_[i].polePairs;
