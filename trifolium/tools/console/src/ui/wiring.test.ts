@@ -295,6 +295,11 @@ describe("grouping wiring into one row per control", () => {
     expect(trigger?.polarity?.key).toBe("device:triggerSwitchNormallyClosed");
   });
 
+  it("pairs the pot pin with its Reversed flag, in the same column", () => {
+    const pot = rows.find((r) => r.pin?.key === "device:speedPotPin");
+    expect(pot?.polarity?.key).toBe("device:speedPotReversed");
+  });
+
   /** The select lines encode a position rather than being pressed, so they have no polarity. */
   it("leaves the select lines without one, rather than inventing a match", () => {
     const select0 = rows.find((r) => r.pin?.key === "device:select0Pin");

@@ -571,7 +571,17 @@ static PolarityItem safetyPolarityItem("Safety Normally Closed",
                                        "device:safetySwitchNormallyClosed",
                                        &deviceSettings.safetySwitchNormallyClosed);
 
-// Outputs and buses first, then the inputs in conflict-resolution order, then the polarities.
+static ToggleItem speedPotReversedItem("Pot Reversed", "device:speedPotReversed",
+                                       &deviceSettings.speedPotReversed);
+static bool speedPotIsWired()
+{
+    return deviceSettings.speedPotPin != PIN_NOT_USED;
+}
+static constexpr VisibilityTerm kSpeedPotWiredTerms[] = {{"device:speedPotPin", "255", true}};
+static constexpr VisibilityCondition kSpeedPotWired = {kSpeedPotWiredTerms, 1};
+
+// Outputs and buses first, then the inputs in conflict-resolution order, then the polarities and
+// the pot's direction.
 static MenuItem* wiringItems[] = {&boardIdItem,            &wiringConfiguredItem,
                                   &esc1PinItem,            &esc2PinItem,
                                   &esc3PinItem,            &esc4PinItem,
@@ -586,7 +596,8 @@ static MenuItem* wiringItems[] = {&boardIdItem,            &wiringConfiguredItem
                                   &select2PinItem,         &triggerPolarityItem,
                                   &revPolarityItem,        &menuButtonPolarityItem,
                                   &cyclePolarityItem,      &dartPolarityItem,
-                                  &idlePolarityItem,       &safetyPolarityItem};
+                                  &idlePolarityItem,       &safetyPolarityItem,
+                                  &speedPotReversedItem};
 static SubmenuItem wiringSubmenu("Wiring", wiringItems,
                                  sizeof(wiringItems) / sizeof(wiringItems[0]));
 struct WiringSubmenuInit
@@ -598,6 +609,8 @@ struct WiringSubmenuInit
         i2cSdaPinItem.setVisibleWhen(displayFitted, &kDisplayFitted);
         i2cSclPinItem.setVisibleWhen(displayFitted, &kDisplayFitted);
         pusherFetPinItem.setVisibleWhen(usesFetPusher, &kUsesFetPusher);
+        speedPotReversedItem.setVisibleWhen(speedPotIsWired, &kSpeedPotWired);
+        speedPotReversedItem.setOffDevice();
     }
 } wiringSubmenuInit;
 

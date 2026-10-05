@@ -96,6 +96,8 @@ static NumericItem<uint16_t> dartWaitItem("Dart Wait (ms)", "device:dartWaitTime
                                           &deviceSettings.dartWaitTimeout_ms, 200, 5000, 100);
 static NumericItem<uint16_t> minPushItem("Min Push (ms)", "device:minPushTime_ms",
                                          &deviceSettings.minPushTime_ms, 0, 60, 1);
+static ToggleItem revOnlyWithDartItem("Rev Only With Dart", "device:revOnlyWithDart",
+                                      &deviceSettings.revOnlyWithDart);
 
 // The stored pin, like ledIsWired() in menuDevice.cpp, so the rule beside it can say the same.
 static bool dartSwitchIsWired()
@@ -128,10 +130,6 @@ struct SolenoidItemsInit
         solenoidHighVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidExtendLowItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidLowVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
-        dartSensingItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
-        dartDebounceItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
-        dartWaitItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
-        minPushItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
     }
 } solenoidItemsInit;
 
@@ -141,9 +139,25 @@ static MenuItem* solenoidItems[] = {
     &pusherTypeItem,          &pusherReverseItem,      &pusherDebounceItem,
     &solenoidRetractItem,     &solenoidExtendHighItem, &solenoidHighVoltageItem,
     &solenoidExtendLowItem,   &solenoidLowVoltageItem, &vibrationPulseItem,
-    &dartSensingItem,         &dartDebounceItem,       &dartWaitItem,
-    &minPushItem,
 };
 // Non-static: referenced by menu.cpp's Advanced submenu assembly.
 SubmenuItem solenoidSubmenu("Solenoid / Pusher", solenoidItems,
                             sizeof(solenoidItems) / sizeof(solenoidItems[0]));
+
+
+static MenuItem* dartItems[] = {
+    &dartSensingItem, &revOnlyWithDartItem, &dartDebounceItem, &dartWaitItem, &minPushItem,
+};
+SubmenuItem dartSwitchSubmenu("Dart Switch", dartItems, sizeof(dartItems) / sizeof(dartItems[0]));
+struct DartItemsInit
+{
+    DartItemsInit()
+    {
+        dartSwitchSubmenu.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
+        dartSensingItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
+        revOnlyWithDartItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
+        dartDebounceItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
+        dartWaitItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
+        minPushItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
+    }
+} dartItemsInit;

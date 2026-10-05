@@ -77,7 +77,6 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:rampupTimeout_ms",
       "device:speedPotMinRPM",
       "device:speedPotMaxRPM",
-      "device:speedPotReversed",
     ],
   },
   {
@@ -97,12 +96,21 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:pusherDebounceTime_ms",
       "device:solenoidRetractTime_ms",
       "device:vibrationPulseMs",
+    ],
+    absorb: ["Solenoid / Pusher"],
+  },
+  {
+    // Everything the dart switch drives, in dartItems[] order (menuSolenoid.cpp). Its pin and
+    // polarity are wiring, so they stay in the Wiring table.
+    label: "Dart Switch",
+    keys: [
       "device:dartSensing",
+      "device:revOnlyWithDart",
       "device:dartSwitchDebounce_ms",
       "device:dartWaitTimeout_ms",
       "device:minPushTime_ms",
     ],
-    absorb: ["Solenoid / Pusher"],
+    absorb: ["Dart Switch"],
   },
   {
     // New grouping. Alternative shot-detection schemes would land here rather than under Device.
@@ -145,9 +153,10 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
     ],
   },
   {
-    // The nine switch pins and the six resting-state flags. Claimed rather than left to the
-    // trailing section because the firmware groups them deliberately - a switch's pin and whether
-    // it is normally closed are one fact about one switch - and "Other settings" throws that away.
+    // The pins, the switches' resting-state flags and the pot's direction. Claimed rather than left
+    // to the trailing section because the firmware groups them deliberately - a switch's pin and
+    // whether it is normally closed are one fact about one switch - and "Other settings" throws
+    // that away.
     //
     // Last, because it is the longest section and the one a user touches least once their board is
     // wired - and because the I2C pair in it follows Display Attached above, so the thing that
@@ -193,6 +202,8 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:dartSwitchNormallyClosed",
       "device:idleSwitchNormallyClosed",
       "device:safetySwitchNormallyClosed",
+      // The pot's counterpart to a polarity, shown in the same column of its row.
+      "device:speedPotReversed",
       // Boot actions are not wiring, but they are indexed by these same eight controls, so the
       // table gives each one a column rather than leaving them as eight unattached enums. Claimed
       // here so they do not also fall through into the trailing section - WiringTable finds its own

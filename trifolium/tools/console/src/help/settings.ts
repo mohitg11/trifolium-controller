@@ -94,7 +94,9 @@ export const SETTING_HELP: Record<string, string> = {
   "device:dartWaitTimeout_ms":
     "How long a queued shot waits for a dart to arrive. When it runs out, the queued shots are dropped and the wheels follow the rev switch again.",
   "device:dartSwitchDebounce_ms":
-    "How long the dart switch must show a dart without a break before it counts. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
+    "How long the dart switch must show a dart without a break before it counts, for Dart Sensing and Rev Only With Dart alike. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
+  "device:revOnlyWithDart":
+    "A rev, from the rev switch or a trigger pull, only starts with a dart in the breech. Once the wheels are up, an empty breech doesn't stop them: they follow the rev switch as usual.",
   "device:pusherDebounceTime_ms": "Debounce for the pusher's own cycle-detection switch.",
   "device:solenoidRetractTime_ms":
     "How long the pusher takes to retract before the next shot. With the extend time, or Min Push while Dart Sensing is on, it sets the highest DPS any mode can reach.",

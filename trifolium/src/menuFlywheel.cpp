@@ -5,7 +5,7 @@ static NumericItem<uint32_t> spindownSpeedItem("Spindown Speed", "profile:spindo
                                                &activeProfile.spindownSpeed, 10, 500, 10);
 // "At speed" = max(targetRPM - firingRPMTolerance, minFiringRPM) - see atSpeedRpm() in main.cpp.
 static NumericItem<int32_t> firingRpmToleranceItem("Firing RPM Tol", "device:firingRPMTolerance",
-                                                   &deviceSettings.firingRPMTolerance, 0, 10000,
+                                                   &deviceSettings.firingRPMTolerance, 0, 20000,
                                                    500);
 static RpmTargetItem minFiringRpmItem("Min Firing RPM", "device:minFiringRPM",
                                       &deviceSettings.minFiringRPM, RPM_TARGET_ALL_MOTORS, 1000,
@@ -24,9 +24,6 @@ static RpmTargetItem speedPotMaxRpmItem("Pot Max RPM", "device:speedPotMaxRPM",
                                         RPM_FLOOR_MOTOR_MIN);
 static FloatItem speedPotStage2RatioItem("Stage 2 Ratio", "profile:speedPotStage2Ratio",
                                          &activeProfile.speedPotStage2Ratio, 0.5f, 2.0f, 0.05f);
-// Which way the pot is wired - wiring rather than preference, so off-device, like a polarity.
-static ToggleItem speedPotReversedItem("Pot Reversed", "device:speedPotReversed",
-                                       &deviceSettings.speedPotReversed);
 
 // The stored pin, like ledIsWired() in menuDevice.cpp, so the rule beside it can say the same.
 static bool speedPotIsWired()
@@ -52,8 +49,6 @@ struct FlywheelItemsInit
         speedPotMinRpmItem.setVisibleWhen(speedPotIsWired, &kSpeedPotWired);
         speedPotMaxRpmItem.setVisibleWhen(speedPotIsWired, &kSpeedPotWired);
         speedPotStage2RatioItem.setVisibleWhen(speedPotIsWired, &kSpeedPotWired);
-        speedPotReversedItem.setVisibleWhen(speedPotIsWired, &kSpeedPotWired);
-        speedPotReversedItem.setOffDevice();
     }
 } flywheelItemsInit;
 
@@ -235,7 +230,7 @@ static MenuItem* flywheelRpmItems[] = {
     &idleRpmCustomSubmenu, &idleRpmStageSubmenu,    &profileDwellItem,
     &profileIdleItem,      &spindownSpeedItem,
     &revSafetyTimeoutItem, &firingRpmToleranceItem, &minFiringRpmItem,        &rampupTimeoutItem,
-    &variableFPSItem,      &speedPotMinRpmItem,     &speedPotMaxRpmItem,      &speedPotReversedItem,
+    &variableFPSItem,      &speedPotMinRpmItem,     &speedPotMaxRpmItem,
 };
 // Non-static: referenced by menu.cpp's Advanced submenu assembly.
 SubmenuItem flywheelRpmSubmenu("Flywheel / RPM", flywheelRpmItems,

@@ -225,4 +225,5 @@ def test_a_wired_pot_shows_its_settings_in_place_of_the_rev_rpm_rows(blaster, pi
                 "profile:speedPotStage2Ratio"):
         assert nodes[key].get("visible", True) is wired, key
     assert groups(tree)["Per Stage RPM"].get("visible", True) is not wired
+    assert "device:speedPotReversed" in keyed_nodes(groups(tree)["Wiring"]["children"])
     assert groups(tree)["Idle RPM (Stage)"].get("visible", True) is True

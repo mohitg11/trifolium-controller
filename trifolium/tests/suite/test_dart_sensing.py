@@ -271,12 +271,12 @@ def test_a_dart_switch_that_lost_its_pin_leaves_the_pusher_pushing_without_it(bl
 
 
 @pytest.mark.parametrize("pin, sensing", [(DART_PIN, True), (DART_PIN, False), (255, True)])
-def test_the_dart_rows_show_only_for_a_wired_switch_and_its_settings_only_with_sensing_on(
+def test_the_dart_rows_show_only_for_a_wired_switch_and_the_sensing_ones_only_with_sensing_on(
         blaster, pin, sensing):
     b = one_mode(blaster, "semi", device={"dartSwitchPin": pin, "dartSensing": sensing})
     nodes = keyed_nodes(schema(b)["tree"])
     wired = pin != 255
-    assert nodes["device:dartSensing"].get("visible", True) is wired
-    for key in ("device:dartSwitchDebounce_ms", "device:dartWaitTimeout_ms",
-                "device:minPushTime_ms"):
+    for key in ("device:dartSensing", "device:revOnlyWithDart", "device:dartSwitchDebounce_ms"):
+        assert nodes[key].get("visible", True) is wired, key
+    for key in ("device:dartWaitTimeout_ms", "device:minPushTime_ms"):
         assert nodes[key].get("visible", True) is (wired and sensing), key

@@ -185,6 +185,8 @@ static bool dartShownLastTick = false;
 static uint32_t dartShownSince_ms = 0;
 // When the pusher became free to push with no dart to push; 0 while no shot is waiting for one.
 uint32_t dartWaitSince_ms = 0;
+// A rev is being held off for want of a dart, so it is logged once rather than every tick.
+static bool revHeldForDart = false;
 
 // SAFE while the switch is held, the selected mode otherwise. Every reader of the live mode goes
 // through this, so the override reaches firing, the flywheels and the panel from one place.
@@ -1053,8 +1055,28 @@ static bool dartSensingOn()
     return deviceSettings.dartSensing && pinDefined(dartSwitchPin);
 }
 
-// With Dart Sensing on, a push needs a dart that arrived after the last one, so a dart the pusher
-// failed to clear is never pushed at twice.
+// With Rev Only With Dart on, a rev only starts with a dart in the breech.
+static bool dartAllowsRev()
+{
+    return !deviceSettings.revOnlyWithDart || !pinDefined(dartSwitchPin) || dartPresent;
+}
+
+static bool revStartWanted()
+{
+    const bool wanted =
+        shotsToFire > 0 || (revControlAllowed() && revRequestedNow() && !revSafetyLatched);
+    if (!wanted || dartAllowsRev())
+    {
+        revHeldForDart = false;
+        return wanted;
+    }
+    if (!revHeldForDart)
+        logger.info("No dart in the breech, not revving");
+    revHeldForDart = true;
+    shotsToFire = 0;
+    return false;
+}
+
 static bool dartReadyToPush()
 {
     return !dartSensingOn() || (dartPresent && breechEmptiedSincePush);
@@ -1068,8 +1090,6 @@ static bool dartHasLeft()
            !dartSwitchShowsDart();
 }
 
-// Queued shots hold the wheels at speed, so an empty magazine would keep them there for good.
-// Dropping the queue lets them follow the rev switch again.
 static void waitForDart()
 {
     if (dartWaitSince_ms == 0)
@@ -1448,7 +1468,7 @@ bool fwControlLoop()
             menuWasOpenForIdleHold = menuOpenNow;
         }
 
-        if (shotsToFire > 0 || (revControlAllowed() && revRequestedNow() && !revSafetyLatched))
+        if (revStartWanted())
         {
             enableFwControl = true;
             revStartTime_us = loopStartTimer_us;
