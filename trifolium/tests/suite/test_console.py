@@ -232,7 +232,11 @@ def test_an_unwired_blaster_set_up_with_a_blaster_config_stores_the_whole_config
         device.update({k: fill_unused(wiring.get(k), v) for k, v in blaster["device"].items()
                        if k in pins})
     device.update(boardId=board, wiringConfigured=True)
-    wanted = [device, *blaster["profiles"]]
+    profiles = blaster["profiles"]
+    if device.get("speedPotPin", 255) != 255:
+        # A speed pot sets rev RPM and stores it once it holds still, so the file's value never runs.
+        profiles = [{k: v for k, v in p.items() if k != "revRPM"} for p in profiles]
+    wanted = [device, *profiles]
     names = ["device", *(f"profile{slot}" for slot in range(len(blaster["profiles"])))]
     assert [d for s, w, n in zip(stored, wanted, names) for d in differences(s, w, n)] == []
 
