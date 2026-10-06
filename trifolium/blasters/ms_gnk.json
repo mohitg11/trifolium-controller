@@ -1,8 +1,8 @@
 {
   "kind": "trifolium-config",
   "bundleVersion": 1,
-  "savedAt": "2026-10-01T00:00:00.000Z",
-  "fw": "2.1.1",
+  "savedAt": "2026-10-06T09:46:45.967Z",
+  "fw": "2.2.0",
   "board": "seeed_xiao_rp2040",
   "notes": [
     "Nothing on this build reads the battery - every XIAO pin is taken - so the firmware works from 3.5 V a cell and has no low-voltage cutoff or warning. Fit a LiPo alarm, or use the ESCs' own cutoff."
@@ -67,7 +67,7 @@
     "pusherDebounceTime_ms": 25,
     "dartSwitchDebounce_ms": 4,
     "dartSensing": true,
-    "dartWaitTimeout_ms": 1000,
+    "dartWaitTimeout_ms": 500,
     "minPushTime_ms": 8,
     "revOnlyWithDart": true,
     "voltageAveragingWindow": 5,
@@ -79,7 +79,7 @@
     "homeScreenDisplayMode": "counter",
     "showDpsOnHomeScreen": false,
     "ledWarningMode": "none",
-    "dshotMode": "dshot300",
+    "dshotMode": "dshot600",
     "printTelemetry": false,
     "useRpmLogging": false,
     "rpmLogLength": 2000,
@@ -87,42 +87,42 @@
       {
         "enabled": true,
         "stage": "stage1",
-        "kp": 0.2,
-        "ki": 0.5,
+        "kp": 0.5,
+        "ki": 0.8,
         "motorKv": 6000,
         "motorPolesDiv2": 6
       },
       {
         "enabled": true,
         "stage": "stage1",
-        "kp": 0.2,
-        "ki": 0.5,
+        "kp": 0.5,
+        "ki": 0.8,
         "motorKv": 6000,
         "motorPolesDiv2": 6
       },
       {
         "enabled": true,
         "stage": "stage2",
-        "kp": 0.2,
-        "ki": 0.5,
+        "kp": 0.5,
+        "ki": 0.8,
         "motorKv": 6000,
         "motorPolesDiv2": 6
       },
       {
         "enabled": true,
         "stage": "stage2",
-        "kp": 0.2,
-        "ki": 0.5,
+        "kp": 0.5,
+        "ki": 0.8,
         "motorKv": 6000,
         "motorPolesDiv2": 6
       }
     ],
     "flywheelControl": "pid",
-    "firingRPMTolerance": 1000,
-    "minFiringRPM": 10000,
+    "firingRPMTolerance": 17500,
+    "minFiringRPM": 20000,
     "rampupTimeout_ms": 500,
-    "speedPotMinRPM": 20000,
-    "speedPotMaxRPM": 50000,
+    "speedPotMinRPM": 30000,
+    "speedPotMaxRPM": 65000,
     "EMAFilter": 2,
     "iThreshold": 50,
     "throttleCap": 300,
@@ -154,10 +154,10 @@
       "schemaVersion": 2,
       "name": "MS-GnK 1",
       "revRPM": [
-        20000,
-        20000,
-        20000,
-        20000
+        47972,
+        47972,
+        47972,
+        47972
       ],
       "dwellTime_ms": 0,
       "idleTime_ms": 0,
@@ -193,8 +193,8 @@
         },
         {
           "name": "",
-          "burstLength": 1,
-          "burstMode": "binary",
+          "burstLength": 3,
+          "burstMode": "burst",
           "targetDPS": 0,
           "reversible": false,
           "binaryTriggerTimeout_ms": 2000,

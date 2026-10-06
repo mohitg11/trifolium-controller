@@ -101,12 +101,13 @@ export const SETTING_HELP: Record<string, string> = {
   "device:solenoidRetractTime_ms":
     "How long the pusher takes to retract before the next shot. With the extend time, or Min Push while Dart Sensing is on, it sets the highest DPS any mode can reach.",
   "device:solenoidExtendTimeHigh_ms":
-    "How long the solenoid stays extended when the battery is at or above the High V Threshold.",
-  "device:solenoidExtendTimeHighVoltage_mv": "The battery voltage from which the High V extend time applies.",
+    "How long the solenoid stays extended with the battery at the High V Threshold. With Dart Sensing on, it is the longest a push lasts: the pusher pulls back sooner once the dart has gone.",
+  "device:solenoidExtendTimeHighVoltage_mv":
+    "The battery voltage the High V extend time is set for. The extend time follows a straight line through the two thresholds and carries on along it beyond them, rather than stopping at either time.",
   "device:solenoidExtendTimeLow_ms":
-    "A longer extend time for a sagging battery, so the push stays consistent as the solenoid weakens.",
+    "How long the solenoid stays extended with the battery at the Low V Threshold, usually longer than at High V so the push stays consistent as the battery sags. With Dart Sensing on, it is the longest a push lasts.",
   "device:solenoidExtendTimeLowVoltage_mv":
-    "The battery voltage below which the Low V extend time applies. Between the two thresholds, the time is blended.",
+    "The battery voltage the Low V extend time is set for. With no battery pin wired, the firmware assumes 3.5 V a cell: set the two extend times equal, and the push lasts the same at any voltage.",
   "device:vibrationPulseMs":
     "Length of the buzz Plasma gives for an armed dart or an overheat. Keep it short: it is meant to be felt, not to move a dart. 0 turns it off.",
   "device:pusherDrive":
