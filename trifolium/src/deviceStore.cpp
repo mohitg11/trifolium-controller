@@ -272,6 +272,10 @@ void toJson(const DeviceSettings& settings, JsonDocument& doc)
     doc["solenoidRetractTime_ms"] = settings.solenoidRetractTime_ms;
     doc["vibrationPulseMs"] = settings.vibrationPulseMs;
 
+    doc["pusherMotorVoltage_mv"] = settings.pusherMotorVoltage_mv;
+    doc["pusherTurnTime_ms"] = settings.pusherTurnTime_ms;
+    doc["pusherStallTime_ms"] = settings.pusherStallTime_ms;
+
     doc["batteryType"] = enumIdOf(settings.batteryType, kBatteryTypeIds, kBatteryTypeIdCount);
     doc["lowVoltageCutoffPerCell_mv"] = settings.lowVoltageCutoffPerCell_mv;
     doc["lowVoltageWarningPerCell_mv"] = settings.lowVoltageWarningPerCell_mv;
@@ -392,8 +396,7 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
 
     // enumFromJson() leaves an unrecognised value at the default. escPin() indexes a 4-element array
     // with pusherEscChannel, and a hand-written config reaches this before any clamp runs.
-    out.pusherType =
-        enumFromJson(doc["pusherType"], kPusherTypeIds, kPusherTypeIdCount, out.pusherType);
+    out.pusherType = pusherTypeFromJson(doc["pusherType"], out.pusherType);
     out.pusherDrive =
         enumFromJson(doc["pusherDrive"], kPusherDriveIds, kPusherDriveIdCount, out.pusherDrive);
     out.pusherFetPin = doc["pusherFetPin"] | out.pusherFetPin;
@@ -473,6 +476,10 @@ void fromJson(JsonDocument& doc, DeviceSettings& out, Source source)
         doc["solenoidExtendTimeLowVoltage_mv"] | out.solenoidExtendTimeLowVoltage_mv;
     out.solenoidRetractTime_ms = doc["solenoidRetractTime_ms"] | out.solenoidRetractTime_ms;
     out.vibrationPulseMs = doc["vibrationPulseMs"] | out.vibrationPulseMs;
+
+    out.pusherMotorVoltage_mv = doc["pusherMotorVoltage_mv"] | out.pusherMotorVoltage_mv;
+    out.pusherTurnTime_ms = doc["pusherTurnTime_ms"] | out.pusherTurnTime_ms;
+    out.pusherStallTime_ms = doc["pusherStallTime_ms"] | out.pusherStallTime_ms;
 
     out.batteryType =
         enumFromJson(doc["batteryType"], kBatteryTypeIds, kBatteryTypeIdCount, out.batteryType);

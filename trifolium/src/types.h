@@ -60,6 +60,15 @@ enum pusherType_t
 {
     NO_PUSHER,
     PUSHER_SOLENOID_OPENLOOP,
+    PUSHER_BRUSHED_MOTOR, // one crank turn per dart, ended by the cycle switch at home
+};
+
+// Where a brushed pusher's crank is. A rehoming turn brings it home and is not a shot.
+enum crankState_t : uint8_t
+{
+    CRANK_PARKED,
+    CRANK_TURNING,
+    CRANK_REHOMING,
 };
 
 // Which physical flywheel stage a motor belongs to - shared across all 3 RPM profiles.

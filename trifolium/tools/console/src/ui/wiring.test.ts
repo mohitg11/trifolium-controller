@@ -255,6 +255,22 @@ describe("describing a pin conflict", () => {
     expect(i2c).toContain("setSDA");
   });
 
+  it("explains a refused brushed pusher rather than naming a rival claim", () => {
+    const fet = describeConflict(
+      entry({ field: "pusher", pin: 24, against: "brushedNeedsEsc", action: "pusherDisabled" }),
+      labels,
+    );
+    expect(fet).toContain("through an ESC");
+    expect(fet).not.toContain("already claims");
+
+    const noSwitch = describeConflict(
+      entry({ field: "pusher", pin: 255, against: "noCycleSwitch", action: "pusherDisabled" }),
+      labels,
+    );
+    expect(noSwitch).toContain("cycle switch");
+    expect(noSwitch).not.toContain("255");
+  });
+
   /**
    * An advisory took nothing away, so it must not read as though something was lost. Nothing in the
    * firmware records one, so this exercises the fallback wording - the case that has to hold when

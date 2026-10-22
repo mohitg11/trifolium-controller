@@ -26,6 +26,8 @@
 #include "shotProfile.h"
 #include "types.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -68,6 +70,12 @@ extern uint8_t selectPins[3];
 extern bool dartPresent, breechEmptiedSincePush;
 extern uint32_t dartWaitSince_ms;
 extern uint8_t pusherPin();
+extern bool brushedPusher;
+extern crankState_t crankState;
+extern bool crankHomeKnown;
+extern uint32_t crankTurn_ms;
+extern uint16_t crankOverruns, crankStalls;
+bool crankAtHome();
 bool menuIsOpen();
 
 namespace
@@ -173,7 +181,11 @@ class Host
         hal::powerOn();
         setPack(16400);
         hal::setWriteHook([this](uint8_t pin, bool level) { onWrite(pin, level); });
-        hal::setInputHook([this](uint8_t pin) { return dartSwitchLevel(pin); });
+        hal::setInputHook([this](uint8_t pin)
+                          {
+                              const int dart = dartSwitchLevel(pin);
+                              return dart >= 0 ? dart : cycleSwitchLevel(pin);
+                          });
         BidirDShotX1::onCreate = [this](BidirDShotX1& esc)
         {
             for (int i = 0; i < 4; i++)
@@ -294,6 +306,12 @@ class Host
             restoreMagazine(req);
         else if (op == "magazine.byHand")
             mag_.byHand = req["value"] | true;
+        else if (op == "crank")
+            configureCrank(req);
+        else if (op == "crank.set")
+            placeCrank(req["angle"] | crank_.angle);
+        else if (op == "crank.get")
+            crankReport(out);
 
         // ---- flash
         else if (op == "flash.put")
@@ -494,6 +512,26 @@ class Host
         uint32_t dry = 0;
         bool byHand = false; // a test is holding the dart switch itself, until the next reload
     } mag_;
+
+    // A brushed pusher's crank, on a brushed_motor build driven through an ESC. The motor turns it
+    // while its channel is sent throttle, at a speed set by the voltage the motor sees, and it runs
+    // on coastDeg (from rated speed, less from slower) once the throttle stops. The cycle switch is
+    // held from 0 to homeDeg, and a dart leaves the breech at pushDeg. A jam holds it at jamDeg
+    // until jamDeg is set back to -1. Angles are degrees, 0 to 360.
+    struct Crank
+    {
+        float angle = 20;
+        float turnMs = 80; // one turn with the motor seeing ratedMv
+        float ratedMv = 12000;
+        float coastDeg = 10;
+        float homeDeg = 40;
+        float pushDeg = 180;
+        float jamDeg = -1;
+        float degPerUs = 0; // under power
+        float coastDegPerUs = 0;
+        float coastLeft = 0;
+        uint64_t at_us = 0; // angle is as of then
+    } crank_;
     std::vector<uint64_t> extends_;
     std::vector<Edge> edges_[hal::kPinCount];
     std::string transcript_;
@@ -707,6 +745,119 @@ class Host
         return dart != deviceSettings.dartSwitchNormallyClosed ? 0 : -1;
     }
 
+    // The stored settings rather than the firmware's boot-time copy: setup() reads the cycle switch
+    // before it has made that copy.
+    bool crankFitted() const
+    {
+        return wiringLive && deviceSettings.pusherType == PUSHER_BRUSHED_MOTOR &&
+               deviceSettings.pusherDrive == PUSHER_DRIVE_ESC;
+    }
+
+    float crankRatedDegPerUs() const { return 360.0f / (crank_.turnMs * 1000.0f); }
+
+    // Brings the angle up to `now`, pushing a dart at the push angle and bringing the pusher back
+    // at home, the way the magazine sees a FET's pushes.
+    void advanceCrank(uint64_t now)
+    {
+        Crank& c = crank_;
+        if (now <= c.at_us)
+            return;
+        const bool powered = c.degPerUs > 0;
+        float travel = (powered ? c.degPerUs : c.coastLeft > 0 ? c.coastDegPerUs : 0) *
+                       (float)(now - c.at_us);
+        c.at_us = now;
+        if (!powered)
+        {
+            travel = std::min(travel, c.coastLeft);
+            c.coastLeft -= travel;
+        }
+        while (travel > 0)
+        {
+            if (c.jamDeg >= 0 && c.angle == c.jamDeg)
+            {
+                c.coastLeft = 0;
+                return;
+            }
+            float next = c.angle < c.pushDeg ? c.pushDeg : 360.0f;
+            if (c.jamDeg > c.angle && c.jamDeg < next)
+                next = c.jamDeg;
+            const float gap = next - c.angle;
+            if (travel < gap)
+            {
+                c.angle += travel;
+                return;
+            }
+            travel -= gap;
+            c.angle = next;
+            if (next == 360.0f)
+            {
+                c.angle = 0;
+                onPusher(false, true);
+            }
+            else if (next == c.pushDeg)
+            {
+                onPusher(true, true);
+            }
+        }
+    }
+
+    // AM32 with 3D off maps the whole throttle range forward onto the motor's duty.
+    void driveCrank(uint16_t throttle, uint64_t now)
+    {
+        advanceCrank(now);
+        Crank& c = crank_;
+        const float volts = packMv_ > 0 ? throttle / 2000.0f * packMv_ : 0;
+        const float speed = crankRatedDegPerUs() * volts / c.ratedMv;
+        if (speed <= 0 && c.degPerUs > 0)
+        {
+            c.coastDegPerUs = c.degPerUs;
+            c.coastLeft = c.coastDeg * c.degPerUs / crankRatedDegPerUs();
+        }
+        else if (speed > 0)
+        {
+            c.coastLeft = 0;
+        }
+        c.degPerUs = speed;
+    }
+
+    void configureCrank(JsonObjectConst req)
+    {
+        advanceCrank(hal::now_us());
+        crank_.turnMs = req["turnMs"] | crank_.turnMs;
+        crank_.ratedMv = req["ratedMv"] | crank_.ratedMv;
+        crank_.coastDeg = req["coastDeg"] | crank_.coastDeg;
+        crank_.homeDeg = req["homeDeg"] | crank_.homeDeg;
+        crank_.pushDeg = req["pushDeg"] | crank_.pushDeg;
+        crank_.jamDeg = req["jamDeg"] | crank_.jamDeg;
+    }
+
+    // Moved by hand, or carried across a reboot: at rest wherever it is put.
+    void placeCrank(float angle)
+    {
+        crank_.angle = std::fmod(std::fmod(angle, 360.0f) + 360.0f, 360.0f);
+        crank_.degPerUs = crank_.coastLeft = 0;
+        crank_.at_us = hal::now_us();
+    }
+
+    void crankReport(JsonObject out)
+    {
+        advanceCrank(hal::now_us());
+        out["angle"] = crank_.angle;
+        out["held"] = crank_.angle < crank_.homeDeg;
+        out["moving"] = crank_.degPerUs > 0 || crank_.coastLeft > 0;
+        out["jammed"] = crank_.jamDeg >= 0 && crank_.angle == crank_.jamDeg;
+    }
+
+    // Held, the cycle switch closes to ground unless it is one that opens instead.
+    int cycleSwitchLevel(uint8_t pin)
+    {
+        if (!crankFitted() || pin != deviceSettings.cycleSwitchPin)
+            return -1;
+        advanceCrank(hal::now_us());
+        const bool held = crank_.angle < crank_.homeDeg;
+        return held != deviceSettings.cycleSwitchNormallyClosed ? 0 : -1;
+    }
+
     // Pending times go out as what is left of them, since each boot's clock starts again at 0.
     void magazineState(JsonObject out)
     {
@@ -757,14 +908,19 @@ class Host
     // An ESC-driven pusher is a brushed motor in place of a solenoid: out while its channel is
     // sent any throttle, back the moment it is sent none. Its pushes are kept as edges on the
     // channel's pin, the way a FET's gate is, so edges() and the panel read either the same way.
+    // On a brushed_motor build the crank does the pushing, and the edges are the motor's power.
     void onPusherEscFrame(BidirDShotX1& esc)
     {
         const bool out = esc.lastThrottle != 0;
+        const bool crank = crankFitted();
+        if (crank)
+            driveCrank(esc.lastThrottle, hal::now_us());
         std::vector<Edge>& edges = edges_[esc.escPin()];
         if (!edges.empty() ? edges.back().level == out : !out)
             return;
         edges.push_back({hal::now_us(), out});
-        onPusher(out, true);
+        if (!crank)
+            onPusher(out, true);
     }
 
     // The pusher going out or coming back, whatever drives it.
@@ -977,6 +1133,21 @@ class Host
                 v["waitMs"] = nullptr;
             else
                 v["waitMs"] = millis() - dartWaitSince_ms;
+        }
+        else if (name == "pusher")
+        {
+            static const char* const kStates[] = {"parked", "turning", "rehoming"};
+            if (!brushedPusher)
+                v.set(nullptr);
+            else
+            {
+                v["state"] = kStates[crankState];
+                v["home"] = crankAtHome();
+                v["homeKnown"] = crankHomeKnown;
+                v["lastTurnMs"] = crankTurn_ms;
+                v["overruns"] = crankOverruns;
+                v["stalls"] = crankStalls;
+            }
         }
         else if (name == "liveTargetDPS") v.set(liveTargetDPS);
         else if (name == "triggerTime_ms") v.set(triggerTime_ms);

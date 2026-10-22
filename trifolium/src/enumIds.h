@@ -17,7 +17,7 @@
 
 inline const char* const kBootActionIds[] = {"none",      "bootloader", "esc_passthrough", "idle_hold",
                                              "profile_0", "profile_1",  "profile_2"};
-inline const char* const kPusherTypeIds[] = {"none", "solenoid_openloop"};
+inline const char* const kPusherTypeIds[] = {"none", "solenoid_openloop", "brushed_motor"};
 inline const char* const kEscChannelIds[] = {"esc1", "esc2", "esc3", "esc4"};
 inline const char* const kPusherDriveIds[] = {"fet", "esc"};
 inline const char* const kDshotModeIds[] = {"dshot300", "dshot600", "dshot1200"};
@@ -111,4 +111,11 @@ inline dshot_mode_t dshotModeFromJson(JsonVariantConst value, dshot_mode_t curre
         }
     }
     return enumFromJson(value, kDshotModeIds, kDshotModeIdCount, current);
+}
+
+inline pusherType_t pusherTypeFromJson(JsonVariantConst value, pusherType_t current)
+{
+    if (value.is<int>() && value.as<int>() == PUSHER_BRUSHED_MOTOR)
+        return PUSHER_SOLENOID_OPENLOOP;
+    return enumFromJson(value, kPusherTypeIds, kPusherTypeIdCount, current);
 }

@@ -87,7 +87,7 @@ export const SETTING_HELP: Record<string, string> = {
 
   // Solenoid and pusher
   "device:pusherType":
-    "Solenoid applies the voltage-compensated extend times below. None leaves them out.",
+    "Solenoid applies the voltage-compensated extend times below. Brushed Motor turns a crank once per dart through an ESC, stopping when the cycle switch says it is home. None leaves them out.",
   "device:pusherReverseDirection": "Flips the pusher motor's direction, for a motor wired backwards.",
   "device:dartSensing":
     "The pusher only pushes when the dart switch shows a dart, a new one each time, and pulls back as soon as that dart has gone. It never pushes an empty breech or the same dart twice.",
@@ -99,7 +99,14 @@ export const SETTING_HELP: Record<string, string> = {
     "How long the dart switch must show a dart without a break before it counts, for Dart Sensing and Rev Only With Dart alike. Higher rides out bounce and sensor noise; lower lets a dart fire sooner after it arrives.",
   "device:revOnlyWithDart":
     "A rev, from the rev switch or a trigger pull, only starts with a dart in the breech. Once the wheels are up, an empty breech doesn't stop them: they follow the rev switch as usual.",
-  "device:pusherDebounceTime_ms": "Debounce for the pusher's own cycle-detection switch.",
+  "device:pusherDebounceTime_ms":
+    "How long the brushed pusher's cycle switch is ignored after it changes, so contact bounce is not read as another turn. The first edge still stops the motor at once.",
+  "device:pusherMotorVoltage_mv":
+    "The voltage the brushed motor runs at, whatever the battery reads, so a turn takes the same time as the pack drains. Higher turns faster, but coasts further past home after each stop.",
+  "device:pusherTurnTime_ms":
+    "How long one turn takes at the Motor Voltage: copy it from the turn time the pusher logs after each shot. It only sets the highest Target DPS any mode can reach.",
+  "device:pusherStallTime_ms":
+    "If the cycle switch has not said home this long after a turn starts, the motor is stopped as jammed and the queued shots are dropped. The next pull turns it home first. Keep it well above Turn Time.",
   "device:solenoidRetractTime_ms":
     "How long the pusher takes to retract before the next shot. With the extend time, or Min Push while Dart Sensing is on, it sets the highest DPS any mode can reach.",
   "device:solenoidExtendTimeHigh_ms":
@@ -155,7 +162,7 @@ export const SETTING_HELP: Record<string, string> = {
   "device:revSwitchPin": "The pin the rev switch is wired to.",
   "device:menuButtonPin": "The pin the menu button is wired to.",
   "device:cycleSwitchPin":
-    "The pin of the pusher's cycle switch, which tells a motor-driven pusher it has completed a stroke.",
+    "The pin of the brushed pusher's cycle switch, held while the pusher is home. A brushed pusher does not run without it.",
   "device:idleSwitchPin":
     "The pin of the idle switch. While it is on, the flywheels wait at idle RPM instead of stopping.",
   "device:safetySwitchPin":

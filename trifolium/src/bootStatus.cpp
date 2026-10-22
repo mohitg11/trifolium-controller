@@ -13,6 +13,7 @@ bool wiringConfigured_ = false;
 bool idleHoldEngaged_ = false;
 int8_t bootProfile_ = -1;
 bool passthroughExited_ = false;
+int8_t pusherHome_ = -1; // -1: no brushed pusher this boot
 
 int32_t escAnsweredAt_ms_[4] = {-1, -1, -1, -1};
 uint32_t escArmDuration_ms_ = 0;
@@ -78,6 +79,11 @@ void recordBootProfile(int8_t slot)
     bootProfile_ = slot;
 }
 
+void recordPusherHome(bool home)
+{
+    pusherHome_ = home ? 1 : 0;
+}
+
 // Written on core 0, after bootSettingsLoaded has released core 1 - unavoidably, since the session
 // it reports ends long after that. A single bool store, and absent means "no session this boot".
 void recordPassthroughExit()
@@ -126,6 +132,8 @@ void writeJson(Print& out)
     out.print(bootProfile_);
     out.print(",\"passthroughExited\":");
     out.print(passthroughExited_ ? "true" : "false");
+    out.print(",\"pusherHomeAtBoot\":");
+    out.print(pusherHome_ < 0 ? "null" : pusherHome_ ? "true" : "false");
     out.print(",\"escArming\":{\"ran\":");
     out.print(escArmRecorded_ ? "true" : "false");
     out.print(",\"duration_ms\":");

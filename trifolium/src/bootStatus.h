@@ -18,6 +18,9 @@ void recordBootProfile(int8_t slot); // -1: no boot action chose one
 // A plain global, so a reboot clears it and a true here means the fall-through really happened.
 void recordPassthroughExit();
 
+// Whether a brushed pusher's cycle switch read home at power-on. Unrecorded means no such pusher.
+void recordPusherHome(bool home);
+
 // answeredAt_ms[i] is when motor i's first eRPM frame decoded, in ms from the arm loop's start, or
 // -1 if none did. Written from the control loop after core 1 is released, so `ran` false means
 // "not finished yet" rather than "never happened"; it is set last, so a true there means the rest

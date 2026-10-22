@@ -128,6 +128,11 @@
       <div id="pusher"><span id="dart"></span><span id="shots">0 shots this boot</span></div>
       <p id="solenoid" class="indicator"><span id="solenoid-lamp" class="lamp"></span>
         <span id="solenoid-label"></span></p>
+      <div id="crank" hidden>
+        <p class="indicator"><span id="home-lamp" class="lamp"></span><span id="crank-label"></span></p>
+        <div class="power"><button class="plain" id="jam"
+          title="Stops the crank at 100°, short of the dart, until cleared">Jam the crank</button></div>
+      </div>
     </section>
     <section class="card">
       <h2>Magazine</h2>
@@ -179,6 +184,7 @@ const ROLES = [
 ];
 const PIN_NOT_USED = 255;
 const POLL_MS = 100;
+const JAM_DEG = 100; // short of the simulator's push angle, 180
 
 const $ = (id) => document.getElementById(id);
 const oled = $("oled").getContext("2d");
@@ -217,8 +223,11 @@ function buildSwitches(settings) {
   // A button-type select fire cycles modes on Select 1, a push button - unless that is the menu
   // button's pin, when the Menu button already presses it.
   const modeButton = settings.selectFireType === "button";
+  // A brushed pusher's crank holds its cycle switch, so there is nothing to press by hand.
+  const crankDriven = settings.pusherType === "brushed_motor";
   const buttons = wired.filter((r) => !selector.includes(r) && !encoder.includes(r) &&
-    !(modeButton && r.role === "select0" && settings.select0Pin === settings.menuButtonPin));
+    !(modeButton && r.role === "select0" && settings.select0Pin === settings.menuButtonPin) &&
+    !(crankDriven && r.role === "cycle"));
   const momentary = (r) => r.momentary || (modeButton && r.role === "select0");
   // A latch left down by the last wiring, on a pin that no longer latches, lets go.
   const latching = new Set([...buttons.filter((r) => !momentary(r)), ...selector, ...encoder]
@@ -474,11 +483,37 @@ function drawSolenoid(s) {
   }
   const lit = Boolean(sol && (sol.on || performance.now() < solenoidLitUntil));
   $("solenoid-lamp").classList.toggle("hot", lit);
+  const kind = s.crank ? "Brushed motor" : sol?.esc ? "Pusher" : "Solenoid";
   $("solenoid-label").textContent = sol
-    ? (sol.esc ? `Pusher · ESC channel ${sol.esc.replace("esc", "")}` : `Solenoid · GPIO ${sol.pin}`) +
+    ? (sol.esc ? `${kind} · ESC channel ${sol.esc.replace("esc", "")}` : `${kind} · GPIO ${sol.pin}`) +
       ` · ${lit ? "powered" : "off"}` +
-      (lastPulseMs === null ? "" : ` · last pulse ${lastPulseMs.toFixed(1)} ms`)
-    : s.motors === undefined ? "Solenoid" : "Solenoid · not wired";
+      (lastPulseMs === null || s.crank ? "" : ` · last pulse ${lastPulseMs.toFixed(1)} ms`)
+    : s.motors === undefined ? "Solenoid" : `${kind} · not wired`;
+}
+
+// A brushed pusher's crank: where it is, whether the cycle switch is held, and what the firmware
+// makes of it.
+function drawCrank(s) {
+  const c = s.crank;
+  $("crank").hidden = !c;
+  if (!c) return;
+  $("home-lamp").classList.toggle("on", c.held);
+  const p = c.pusher;
+  const parts = [`Crank at ${Math.round(c.angle)}°`, c.held ? "home" : "away from home"];
+  if (c.jammed) parts.push("jammed");
+  if (p) {
+    parts.push(p.state);
+    if (p.lastTurnMs) parts.push(`last turn ${p.lastTurnMs} ms`);
+    if (p.overruns) parts.push(`${p.overruns} overrun${p.overruns === 1 ? "" : "s"}`);
+    if (p.stalls) parts.push(`${p.stalls} stall${p.stalls === 1 ? "" : "s"}`);
+  } else {
+    parts.push("disabled - see the console's pin conflicts");
+  }
+  $("crank-label").textContent = parts.join(" · ");
+  // Armed is a jam set but not yet reached: the crank stops there on its next pass.
+  if (c.jammed) $("jam").dataset.armed = "";
+  $("jam").dataset.jammed = c.jammed ? "1" : "";
+  $("jam").textContent = c.jammed ? "Clear the jam" : $("jam").dataset.armed ? "Jam set at 100°: clear" : "Jam the crank";
 }
 
 function drawStatus(s) {
@@ -516,6 +551,7 @@ async function poll() {
     drawScreen(s.panel);
     drawLed(s);
     drawSolenoid(s);
+    drawCrank(s);
     drawMagazine(s);
     drawWheels(s);
     drawStatus(s);
@@ -551,6 +587,11 @@ $("mag-rate").addEventListener("input", () => {
 });
 $("mag-rate").addEventListener("change", () => act({ op: "magazine", loadRate: Number($("mag-rate").value) }));
 $("reload").addEventListener("click", () => act({ op: "reload" }));
+$("jam").addEventListener("click", () => {
+  const jammed = $("jam").dataset.jammed || $("jam").dataset.armed;
+  $("jam").dataset.armed = jammed ? "" : "1";
+  act({ op: "crank", jamDeg: jammed ? -1 : JAM_DEG });
+});
 
 $("pot").addEventListener("input", () => {
   $("pot-value").textContent = `${$("pot").value}%`;

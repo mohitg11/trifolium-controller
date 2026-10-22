@@ -7,7 +7,8 @@ class EscDriver : public Driver
   public:
     // Takes the DShot rate rather than assuming one: the pusher shares the bus discipline of the
     // flywheel ESCs, so it has to run at the rate deviceSettings.dshotMode selected for them.
-    EscDriver(uint8_t escPin, uint16_t dshotRate);
+    // forwardOnly is a brushed motor on an ESC with 3D off: the whole throttle range is forward.
+    EscDriver(uint8_t escPin, uint16_t dshotRate, bool forwardOnly = false);
     void drive(float dutyCycle, bool reverseDirection);
     void coast();
     void update() override;
@@ -16,4 +17,5 @@ class EscDriver : public Driver
   private:
     uint16_t throttleValue;
     BidirDShotX1* esc;
+    bool forwardOnly_;
 };
