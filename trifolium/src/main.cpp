@@ -154,6 +154,17 @@ float solenoidVoltageTimeSlope =
 int16_t solenoidVoltageTimeIntercept = 0;
 float maxAchievableDPS = 0;
 
+// Set once at boot: the stored pusherType can change before the reboot that applies it.
+bool brushedPusher = false;
+crankState_t crankState = CRANK_PARKED;
+bool crankHomeKnown = false;
+uint32_t crankTurn_ms = 0; // the last counted turn, start to home
+uint16_t crankOverruns = 0;
+uint16_t crankStalls = 0;
+static uint32_t crankMovedAt_ms = 0;   // the stall timer, restarted at every turn's start
+static uint32_t crankStoppedAt_ms = 0; // when the motor was last cut
+static bool crankRestChecked = true;   // whether the crank has been seen at rest since that cut
+
 bool enableFwControl = true;
 
 volatile bool directMotorControlActive = false;
@@ -434,6 +445,12 @@ void applySolenoidTimingCurve()
 
 void applyMaxAchievableDps()
 {
+    if (deviceSettings.pusherType == PUSHER_BRUSHED_MOTOR)
+    {
+        const uint16_t turn_ms = deviceSettings.pusherTurnTime_ms;
+        maxAchievableDPS = turn_ms > 0 ? 1000.0f / turn_ms : 0;
+        return;
+    }
     float extendAtVoltage_ms =
         batteryMonitor->getVoltage_mv() * solenoidVoltageTimeSlope + solenoidVoltageTimeIntercept;
     // With Dart Sensing a push can end the tick after Min Push, so the fastest cycle is that short.
@@ -656,6 +673,32 @@ static void validatePusherAndMotors()
     }
 }
 
+// A brushed pusher needs a speed and an end to each turn: a FET gate would run it at the full pack,
+// and with no cycle switch every turn would end in a stall. After resolve(), which settles the
+// cycle switch's pin and leaves the pusher's own pin claimed.
+static void validateBrushedPusher()
+{
+    if (deviceSettings.pusherType != PUSHER_BRUSHED_MOTOR || !pusherValid ||
+        !pinDefined(pusherPin()))
+        return;
+    if (deviceSettings.pusherDrive == PUSHER_DRIVE_FET)
+    {
+        pusherValid = false;
+        pinMode(pusherPin(), OUTPUT);
+        digitalWrite(pusherPin(), LOW);
+        PinConflicts::record("pusher", pusherPin(), "brushedNeedsEsc",
+                             PinConflicts::Action::PusherDisabled);
+        logger.error("A brushed pusher is driven through an ESC, not a FET - pusher disabled");
+    }
+    else if (!pinDefined(cycleSwitchPin))
+    {
+        pusherValid = false;
+        PinConflicts::record("pusher", PIN_NOT_USED, "noCycleSwitch",
+                             PinConflicts::Action::PusherDisabled);
+        logger.error("A brushed pusher needs the cycle switch wired - pusher disabled");
+    }
+}
+
 // ESC startup: zero throttle until every enabled ESC answers, then the EDT request. An ESC still in
 // its own power-on init can miss a fixed number of frames entirely - one board measures 336 ms and
 // 1545 ms for its two. An eRPM frame means listening, not armed; the dwell after it is what arms.
@@ -812,6 +855,7 @@ void setup()
     // builds its claimed-pin set from motorsEnabled[], so undrivable motors have to leave it first.
     validatePusherAndMotors();
     PinConflicts::resolve();
+    validateBrushedPusher();
 
     // Active-high, and ahead of ESC passthrough and arming, which both need the ESCs powered. The pin
     // floats until here, so a board wiring it pulls it down. The low-voltage cutoff drops it again.
@@ -889,6 +933,16 @@ void setup()
         cycleSwitch.attach(cycleSwitchPin, INPUT_PULLUP);
         cycleSwitch.interval(deviceSettings.pusherDebounceTime_ms);
         cycleSwitch.setPressedState(deviceSettings.cycleSwitchNormallyClosed);
+    }
+    brushedPusher = pusherValid && deviceSettings.pusherType == PUSHER_BRUSHED_MOTOR &&
+                    deviceSettings.pusherDrive == PUSHER_DRIVE_ESC;
+    if (brushedPusher)
+    {
+        // Read, never acted on: a pusher stopped mid-stroke would jam a dart into still wheels.
+        crankHomeKnown = cycleSwitch.isPressed();
+        BootStatus::recordPusherHome(crankHomeKnown);
+        logger.info(crankHomeKnown ? "Pusher is home"
+                                   : "Pusher is away from home - the first pull turns it home");
     }
     if (pinDefined(dartSwitchPin))
     {
@@ -1095,7 +1149,8 @@ void setup()
         switch (deviceSettings.pusherDrive)
         {
         case PUSHER_DRIVE_ESC:
-            pusher = new EscDriver(pusherPin(), dshotRate(deviceSettings.dshotMode));
+            pusher =
+                new EscDriver(pusherPin(), dshotRate(deviceSettings.dshotMode), brushedPusher);
             break;
         case PUSHER_DRIVE_FET:
         default:
@@ -1700,7 +1755,8 @@ static const uint32_t kBuzzPulseGapMs = 60; // fixed spacing between pulses with
 
 void handlePlasmaBuzzPulse()
 {
-    if (deviceSettings.vibrationPulseMs == 0) // 0 = disabled
+    // A pulse would turn a brushed pusher's crank part way, and could push a dart.
+    if (deviceSettings.vibrationPulseMs == 0 || brushedPusher) // 0 = disabled
     {
         buzzPulsesRequested_ = 0;
         return;
@@ -1762,8 +1818,158 @@ static bool idleSwitchHeld()
            !batteryFlat;
 }
 
+static float crankDriveFraction()
+{
+    return min(1.0f, (float)deviceSettings.pusherMotorVoltage_mv / throttleReferenceVoltage_mv());
+}
+
+bool crankAtHome()
+{
+    return cycleSwitch.isPressed();
+}
+
+static void checkCrankAtRest()
+{
+    crankRestChecked = true;
+    if (cycleSwitch.isPressed())
+        return;
+    crankOverruns++;
+    logger.warn("Pusher coasted past home - lower Motor Voltage if this repeats");
+}
+
+static void startCrank(crankState_t state)
+{
+    if (!crankRestChecked)
+        checkCrankAtRest();
+    crankState = state;
+    crankMovedAt_ms = time_ms;
+    firing = true;
+    pusher->drive(crankDriveFraction(), false);
+}
+
+// Target DPS counts from one turn's start to the next, so no model of the turn time is needed.
+static bool crankSpacingDone()
+{
+    return liveTargetDPS <= 0 || lastShotExtendTime_ms == 0 ||
+           time_ms - lastShotExtendTime_ms >= (uint32_t)(1000.0f / liveTargetDPS);
+}
+
+static void startCountedTurn()
+{
+    dartWaitSince_ms = 0;
+    speedWaitSince_ms = 0;
+    pushWaitsForSpeed = false;
+    if (!deviceSettings.useRpmBaseShotCounter)
+        registerShot();
+    else
+        pendingShotDetections++;
+    breechEmptiedSincePush = false;
+    shotsToFire = max(0, shotsToFire - 1);
+
+    if (lastShotExtendTime_ms != 0)
+    {
+        const uint32_t interval_ms = time_ms - lastShotExtendTime_ms;
+        lastMeasuredDPS = interval_ms > 0 ? 1000.0f / interval_ms : 0;
+        logger.info("Pusher turning, interval_ms=", interval_ms, " achievedDPS=", lastMeasuredDPS,
+                    " targetDPS=", activeProfile.fireModes[firingMode].targetDPS);
+    }
+    else
+    {
+        logger.info("Pusher turning");
+    }
+    lastShotExtendTime_ms = time_ms;
+    startCrank(CRANK_TURNING);
+}
+
+static void crankArrived()
+{
+    const bool counted = crankState == CRANK_TURNING;
+    crankHomeKnown = true;
+    if (counted)
+    {
+        crankTurn_ms = time_ms - lastShotExtendTime_ms;
+        // Carrying straight on saves a stop and a restart when the next shot is already due.
+        if (flywheelState == STATE_FULLSPEED && shotsToFire > 0 && crankSpacingDone() &&
+            wheelsReadyToPush() && dartReadyToPush())
+        {
+            startCountedTurn();
+            return;
+        }
+    }
+    pusher->coast();
+    crankState = CRANK_PARKED;
+    firing = false;
+    pusherTimer_ms = time_ms;
+    crankStoppedAt_ms = time_ms;
+    crankRestChecked = false;
+    if (counted)
+        logger.info("Pusher home, the turn took ", crankTurn_ms, " ms");
+    else
+        logger.info("Pusher home");
+}
+
+static void crankStalled()
+{
+    pusher->coast();
+    crankState = CRANK_PARKED;
+    firing = false;
+    crankHomeKnown = false;
+    crankRestChecked = true;
+    pusherTimer_ms = time_ms;
+    crankStalls++;
+    logger.warn("Pusher stalled - no cycle switch for ", deviceSettings.pusherStallTime_ms,
+                " ms, dropping ", shotsToFire, " queued shots");
+    shotsToFire = 0;
+}
+
+static void monitorCrank()
+{
+    cycleSwitch.update();
+    if (crankState == CRANK_PARKED)
+    {
+        if (!crankRestChecked && time_ms - crankStoppedAt_ms >= deviceSettings.pusherTurnTime_ms)
+            checkCrankAtRest();
+        return;
+    }
+    if (cycleSwitch.pressed())
+        crankArrived();
+    else if (time_ms - crankMovedAt_ms > deviceSettings.pusherStallTime_ms)
+        crankStalled();
+}
+
+static void brushedPusherAtSpeed()
+{
+    if (crankState != CRANK_PARKED || shotsToFire <= 0)
+        return;
+    if (!crankHomeKnown && cycleSwitch.isPressed())
+        crankHomeKnown = true;
+    if (!crankHomeKnown)
+    {
+        if (!wheelsReadyToPush())
+        {
+            waitForSpeed();
+            return;
+        }
+        speedWaitSince_ms = 0;
+        logger.info("Pusher is away from home, turning it home");
+        startCrank(CRANK_REHOMING);
+        return;
+    }
+    if (!crankSpacingDone())
+        return;
+    if (!wheelsReadyToPush())
+        waitForSpeed();
+    else if (!dartReadyToPush())
+        waitForDart();
+    else
+        startCountedTurn();
+}
+
 bool fwControlLoop()
 {
+    if (brushedPusher)
+        monitorCrank();
+
     if (directMotorControlActive)
     {
         pusher->update();
@@ -1878,9 +2084,10 @@ bool fwControlLoop()
         else if ((time_ms < lastRevTime_ms + dwellTime_ms && lastRevTime_ms > 0) ||
                  pendingShotDetections > 0)
         { // dwell flywheels
-            if (pendingShotDetections > 0 && time_ms > pusherTimer_ms +
-                                                           deviceSettings.solenoidRetractTime_ms +
-                                                           kShotDetectionGraceMs)
+            // A brushed pusher's timer is set when it comes home, so it has no retract to wait out.
+            const uint32_t retract_ms = brushedPusher ? 0 : deviceSettings.solenoidRetractTime_ms;
+            if (pendingShotDetections > 0 &&
+                time_ms > pusherTimer_ms + retract_ms + kShotDetectionGraceMs)
             {
                 // Gave up waiting - a dry fire never produces the drop.
                 pendingShotDetections = 0;
@@ -2007,6 +2214,11 @@ bool fwControlLoop()
         else if (shotsToFire > 0 || firing)
         {
             lastRevTime_ms = time_ms;
+            if (brushedPusher)
+            {
+                brushedPusherAtSpeed();
+                break;
+            }
 
             const bool pusherFree = shotsToFire > 0 && !firing &&
                                     time_ms > pusherTimer_ms +

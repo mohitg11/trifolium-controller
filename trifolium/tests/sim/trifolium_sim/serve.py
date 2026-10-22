@@ -112,6 +112,8 @@ def snapshot(b, since_us=0):
             values["solenoid"] = pusher(b, pin, since_us or 0, esc=channel)
     elif fet != PIN_NOT_USED:
         values["solenoid"] = pusher(b, fet, since_us or 0)
+    if settings.get("pusherType") == "brushed_motor":
+        values["crank"] = {**b.crank_state(), "pusher": b.peek("pusher")}
     return {**reply, **values, "panel": {"on": panel.on, "pixels": panel.pixels},
             "wheels": b.wheels(), "extends": len(b.extends())}
 
@@ -136,6 +138,9 @@ def control(b, req):
         return {}
     if op == "reload":
         b.reload()
+        return {}
+    if op == "crank":
+        b.crank(**{k: v for k, v in req.items() if k not in ("op", "id")})
         return {}
     if op == "panel":
         panel = b.panel(pixels=req.get("pixels", False))
@@ -174,8 +179,8 @@ def control(b, req):
     raise ValueError(f"unknown op {op!r}")
 
 
-CONTROL = ("press release tap pack pot magazine reload panel peek wheels extends wiring power_cycle "
-           "power_on state flash snapshot speed").split()
+CONTROL = ("press release tap pack pot magazine reload crank panel peek wheels extends wiring "
+           "power_cycle power_on state flash snapshot speed").split()
 
 
 class Host:

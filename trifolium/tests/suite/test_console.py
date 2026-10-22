@@ -1158,6 +1158,27 @@ def test_an_esc_driven_pusher_lights_and_counts_on_the_panel_as_a_fet_driven_one
         re.compile(r"^Pusher · ESC channel 3 · (powered|off) · last pulse 2[5-7]\.\d ms$"))
 
 
+def test_a_brushed_pusher_shows_its_crank_on_the_panel_and_the_crank_holds_the_cycle_switch(
+        page, serve):
+    served = serve(device={"pusherType": "brushed_motor", "pusherDrive": "esc",
+                           "cycleSwitchPin": 22})
+    open_panel(page, served)
+    expect(page.locator("#solenoid-label")).to_have_text("Brushed motor · ESC channel 3 · off",
+                                                         timeout=REBOOT_MS)
+    crank = page.locator("#crank-label")
+    expect(crank).to_have_text(re.compile(r"^Crank at 20° · home · parked$"))
+    expect(switch(page, "Trigger")).to_have_count(1)
+    expect(switch(page, "Cycle")).to_have_count(0)
+
+    served.wait_armed()
+    trigger = switch(page, "Trigger").bounding_box()
+    page.mouse.move(trigger["x"] + trigger["width"] / 2, trigger["y"] + trigger["height"] / 2)
+    page.mouse.down()
+    expect(page.get_by_text(re.compile(r"^[1-9]\d* shots? this boot$"))).to_be_visible(timeout=5000)
+    page.mouse.up()
+    expect(crank).to_have_text(re.compile(r"· home · parked · last turn \d+ ms$"), timeout=5000)
+
+
 def test_a_wired_led_on_the_panel_is_lit_once_armed_and_blinks_below_the_cutoff(page, serve):
     served = serve(preset="diana_v1_2")  # the boards that wire the LED, on GPIO 27
     open_panel(page, served)

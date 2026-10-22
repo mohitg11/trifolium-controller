@@ -224,6 +224,23 @@ class Blaster:
         reply = self._call("magazine.get")
         return {k: v for k, v in reply.items() if k not in ("id", "ok")}
 
+    def crank(self, **params):
+        """A brushed_motor build's crank: turnMs (one turn with the motor seeing ratedMv), ratedMv,
+        coastDeg (how far it runs on after a stop from that speed), homeDeg (the cycle switch is
+        held from 0 to here), pushDeg (where a dart leaves the breech) and jamDeg (it stops there
+        until set back to -1). Angles are degrees; it rests at 20 until it first moves."""
+        merged = dict(self._world.get(("crank",), ("crank", {}))[1], **params)
+        self._set_world(("crank",), "crank", **merged)
+
+    def place_crank(self, angle):
+        """The crank turned to `angle` by hand, at rest there. It stays put across reboots."""
+        self._call("crank.set", angle=angle)
+
+    def crank_state(self):
+        """angle, held (the cycle switch), moving and jammed."""
+        reply = self._call("crank.get")
+        return {k: v for k, v in reply.items() if k not in ("id", "ok")}
+
     def darts(self, **params):
         """loaded, delay_us, loss_rpm - what goes through the wheels on each extend. With a
         magazine in, only a push that carries a dart out puts one through them."""
@@ -540,6 +557,7 @@ class Blaster:
         files = self._call("flash.dump")["files"]
         ram = self._call("noinit.get") if keep_ram else None
         magazine = self.magazine_state()
+        crank = self.crank_state()
         self._finish_boot("reboot" if keep_ram else "power")
         self._proc.close()
 
@@ -559,3 +577,4 @@ class Blaster:
         for op, params in self._world.values():
             self._call(op, **self._as_of_now(op, params))
         self._call("magazine.set", **magazine)
+        self._call("crank.set", angle=crank["angle"])

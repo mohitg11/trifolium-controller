@@ -32,6 +32,13 @@ const CAPABILITY: Record<string, string> = {
   i2cPair: "is not a pair any I2C block can serve — a GPIO's I2C role is fixed by pin % 4",
 };
 
+/** A pusher the firmware refused for how it is set up, not because another claim took its pin. */
+const PUSHER_REFUSED: Record<string, string> = {
+  brushedNeedsEsc:
+    "A brushed pusher runs through an ESC: a FET cannot set its speed. Set Pusher Driver to ESC. The pusher is disabled for this boot.",
+  noCycleSwitch: "A brushed pusher needs its cycle switch wired. The pusher is disabled for this boot.",
+};
+
 /** The schema row label for a device field, so the banner names the field the way the form does. */
 export function labelsByField(schema: Schema): Map<string, string> {
   const out = new Map<string, string>();
@@ -62,6 +69,7 @@ export function describeConflict(entry: PinConflict, labels: Map<string, string>
         ? `${name(entry.field)} shares ${pin} with ${name(entry.against)}, so the motor is disabled for this boot.`
         : `${name(entry.field)} has no ESC pin in this wiring, so the motor is disabled.`;
     case "pusherDisabled":
+      if (PUSHER_REFUSED[entry.against]) return PUSHER_REFUSED[entry.against];
       return pin
         ? `The pusher is ${pin}, which ${name(entry.against)} already claims, so the pusher is disabled for this boot.`
         : "The pusher ESC channel has no pin in this wiring, so the pusher is disabled.";

@@ -82,10 +82,8 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
     ],
   },
   {
-    // Named keys first, then everything else the firmware groups here. These five apply whatever
-    // pusher is fitted; the extend-time rows that absorb in below them are solenoid-only, and the
-    // firmware hides them on any other type. Same order as solenoidItems[] in menuSolenoid.cpp, so
-    // the panel and this page read alike.
+    // Named keys first, then everything else the firmware groups here: the solenoid's extend-time
+    // rows absorb in below them. The firmware hides each pusher type's rows on the others.
     label: "Solenoid / Pusher",
     keys: [
       // How the pusher is driven leads what it is: the ESC-channel row below is shown or hidden by
@@ -95,9 +93,12 @@ export const DEVICE_LAYOUT: SectionSpec[] = [
       "device:pusherEscChannel",
       "device:pusherType",
       "device:pusherReverseDirection",
-      "device:pusherDebounceTime_ms",
       "device:solenoidRetractTime_ms",
       "device:vibrationPulseMs",
+      "device:pusherMotorVoltage_mv",
+      "device:pusherTurnTime_ms",
+      "device:pusherStallTime_ms",
+      "device:pusherDebounceTime_ms",
     ],
     absorb: ["Solenoid / Pusher"],
   },

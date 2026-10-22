@@ -183,6 +183,10 @@ inline const DeviceSettings kDefaultDeviceSettings = {
     .solenoidRetractTime_ms = 30,
     .vibrationPulseMs = 0,
 
+    .pusherMotorVoltage_mv = 12000,
+    .pusherTurnTime_ms = 80,
+    .pusherStallTime_ms = 500,
+
     .batteryType = BATTERY_4S,
     .lowVoltageCutoffPerCell_mv = 3300,
     .lowVoltageWarningPerCell_mv = 3700,

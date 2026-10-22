@@ -79,7 +79,15 @@ static NumericItem<uint16_t> solenoidRetractItem("Retract Time (ms)",
 static NumericItem<uint16_t> vibrationPulseItem("Vibration Pulse (ms)", "device:vibrationPulseMs",
                                                 &deviceSettings.vibrationPulseMs, 0, 20, 1);
 
-static const char* const pusherTypeLabels[] = {"None", "Solenoid"};
+static NumericItem<uint16_t> motorVoltageItem("Motor Voltage (mV)", "device:pusherMotorVoltage_mv",
+                                              &deviceSettings.pusherMotorVoltage_mv, 3000, 25200,
+                                              100);
+static NumericItem<uint16_t> turnTimeItem("Turn Time (ms)", "device:pusherTurnTime_ms",
+                                          &deviceSettings.pusherTurnTime_ms, 20, 500, 5);
+static NumericItem<uint16_t> stallTimeItem("Stall Time (ms)", "device:pusherStallTime_ms",
+                                           &deviceSettings.pusherStallTime_ms, 100, 2000, 50);
+
+static const char* const pusherTypeLabels[] = {"None", "Solenoid", "Brushed Motor"};
 static_assert(sizeof(pusherTypeLabels) / sizeof(pusherTypeLabels[0]) == kPusherTypeIdCount, "pusherTypeLabels is out of step");
 static EnumItem<pusherType_t> pusherTypeItem("Pusher Type", "device:pusherType",
                                              &deviceSettings.pusherType, pusherTypeLabels,
@@ -87,7 +95,7 @@ static EnumItem<pusherType_t> pusherTypeItem("Pusher Type", "device:pusherType",
                                              true /* needsReboot */);
 static ToggleItem pusherReverseItem("Reverse Direction", "device:pusherReverseDirection",
                                     &deviceSettings.pusherReverseDirection);
-static NumericItem<uint16_t> pusherDebounceItem("Debounce (ms)", "device:pusherDebounceTime_ms",
+static NumericItem<uint16_t> pusherDebounceItem("Cycle Debounce (ms)", "device:pusherDebounceTime_ms",
                                                 &deviceSettings.pusherDebounceTime_ms, 0, 200, 1);
 static ToggleItem dartSensingItem("Dart Sensing", "device:dartSensing", &deviceSettings.dartSensing);
 static NumericItem<uint16_t> dartDebounceItem("Dart Debounce (ms)", "device:dartSwitchDebounce_ms",
@@ -115,6 +123,18 @@ static constexpr VisibilityTerm kDartSensingOnTerms[] = {{"device:dartSwitchPin"
                                                          {"device:dartSensing", "true", false}};
 static constexpr VisibilityCondition kDartSensingOn = {kDartSensingOnTerms, 2};
 
+// A crank turn cannot end early, so a brushed pusher has no Min Push.
+static bool pushCanEndOnDart()
+{
+    return deviceSettings.dartSwitchPin != PIN_NOT_USED && deviceSettings.dartSensing &&
+           deviceSettings.pusherType != PUSHER_BRUSHED_MOTOR;
+}
+static constexpr VisibilityTerm kPushCanEndOnDartTerms[] = {
+    {"device:dartSwitchPin", "255", true},
+    {"device:dartSensing", "true", false},
+    {"device:pusherType", "brushed_motor", true}};
+static constexpr VisibilityCondition kPushCanEndOnDart = {kPushCanEndOnDartTerms, 3};
+
 static bool pusherIsSolenoid()
 {
     return deviceSettings.pusherType == PUSHER_SOLENOID_OPENLOOP;
@@ -122,6 +142,24 @@ static bool pusherIsSolenoid()
 static constexpr VisibilityTerm kPusherIsSolenoidTerms[] = {
     {"device:pusherType", "solenoid_openloop", false}};
 static constexpr VisibilityCondition kPusherIsSolenoid = {kPusherIsSolenoidTerms, 1};
+
+static bool pusherIsBrushed()
+{
+    return deviceSettings.pusherType == PUSHER_BRUSHED_MOTOR;
+}
+static constexpr VisibilityTerm kPusherIsBrushedTerms[] = {
+    {"device:pusherType", "brushed_motor", false}};
+static constexpr VisibilityCondition kPusherIsBrushed = {kPusherIsBrushedTerms, 1};
+
+// With 3D off the brushed motor only runs forward, and a vibration pulse would turn its crank.
+static bool pusherIsNotBrushed()
+{
+    return deviceSettings.pusherType != PUSHER_BRUSHED_MOTOR;
+}
+static constexpr VisibilityTerm kPusherIsNotBrushedTerms[] = {
+    {"device:pusherType", "brushed_motor", true}};
+static constexpr VisibilityCondition kPusherIsNotBrushed = {kPusherIsNotBrushedTerms, 1};
+
 struct SolenoidItemsInit
 {
     SolenoidItemsInit()
@@ -130,15 +168,21 @@ struct SolenoidItemsInit
         solenoidHighVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidExtendLowItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
         solenoidLowVoltageItem.setVisibleWhen(pusherIsSolenoid, &kPusherIsSolenoid);
+        pusherReverseItem.setVisibleWhen(pusherIsNotBrushed, &kPusherIsNotBrushed);
+        solenoidRetractItem.setVisibleWhen(pusherIsNotBrushed, &kPusherIsNotBrushed);
+        vibrationPulseItem.setVisibleWhen(pusherIsNotBrushed, &kPusherIsNotBrushed);
+        motorVoltageItem.setVisibleWhen(pusherIsBrushed, &kPusherIsBrushed);
+        turnTimeItem.setVisibleWhen(pusherIsBrushed, &kPusherIsBrushed);
+        stallTimeItem.setVisibleWhen(pusherIsBrushed, &kPusherIsBrushed);
+        pusherDebounceItem.setVisibleWhen(pusherIsBrushed, &kPusherIsBrushed);
     }
 } solenoidItemsInit;
 
-// The five that always apply come first. The four extend-time rows below are solenoid-only, so
-// leading with them left the top half of the menu blank on any other pusher type.
 static MenuItem* solenoidItems[] = {
-    &pusherTypeItem,          &pusherReverseItem,      &pusherDebounceItem,
-    &solenoidRetractItem,     &solenoidExtendHighItem, &solenoidHighVoltageItem,
-    &solenoidExtendLowItem,   &solenoidLowVoltageItem, &vibrationPulseItem,
+    &pusherTypeItem,         &pusherReverseItem,       &solenoidRetractItem,
+    &solenoidExtendHighItem, &solenoidHighVoltageItem, &solenoidExtendLowItem,
+    &solenoidLowVoltageItem, &vibrationPulseItem,      &motorVoltageItem,
+    &turnTimeItem,           &stallTimeItem,           &pusherDebounceItem,
 };
 // Non-static: referenced by menu.cpp's Advanced submenu assembly.
 SubmenuItem solenoidSubmenu("Solenoid / Pusher", solenoidItems,
@@ -158,6 +202,6 @@ struct DartItemsInit
         revOnlyWithDartItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
         dartDebounceItem.setVisibleWhen(dartSwitchIsWired, &kDartSwitchWired);
         dartWaitItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
-        minPushItem.setVisibleWhen(dartSensingIsOn, &kDartSensingOn);
+        minPushItem.setVisibleWhen(pushCanEndOnDart, &kPushCanEndOnDart);
     }
 } dartItemsInit;

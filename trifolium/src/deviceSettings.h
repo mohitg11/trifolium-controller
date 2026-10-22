@@ -123,6 +123,11 @@ struct DeviceSettings
     uint16_t solenoidRetractTime_ms;
     uint16_t vibrationPulseMs;
 
+    // Brushed pusher
+    uint16_t pusherMotorVoltage_mv; // what the motor is driven at, whatever the pack reads
+    uint16_t pusherTurnTime_ms;     // one turn at that voltage; sets the Target DPS ceiling only
+    uint16_t pusherStallTime_ms;    // a turn with no cycle switch this long after its start stalled
+
     // Battery
     batteryType_t batteryType;
     uint32_t lowVoltageCutoffPerCell_mv;

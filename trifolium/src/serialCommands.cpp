@@ -37,6 +37,13 @@ extern uint8_t dartSwitchPin;
 extern bool dartPresent;
 extern bool breechEmptiedSincePush;
 extern uint32_t dartWaitSince_ms;
+extern bool brushedPusher;
+extern crankState_t crankState;
+extern bool crankHomeKnown;
+extern uint32_t crankTurn_ms;
+extern uint16_t crankOverruns;
+extern uint16_t crankStalls;
+bool crankAtHome();
 bool idleHoldWanted();
 bool menuIsOpen();
 bool revControlAllowed();
@@ -502,6 +509,28 @@ void handleSerialCommands()
                 Serial.print("null");
             else
                 Serial.print(millis() - waitSince_ms);
+            Serial.print('}');
+        }
+        Serial.print(",\"pusher\":");
+        if (!brushedPusher)
+        {
+            Serial.print("null");
+        }
+        else
+        {
+            static const char* const kCrankStates[] = {"parked", "turning", "rehoming"};
+            Serial.print("{\"state\":\"");
+            Serial.print(kCrankStates[crankState]);
+            Serial.print("\",\"home\":");
+            Serial.print(crankAtHome() ? "true" : "false");
+            Serial.print(",\"homeKnown\":");
+            Serial.print(crankHomeKnown ? "true" : "false");
+            Serial.print(",\"lastTurnMs\":");
+            Serial.print(crankTurn_ms);
+            Serial.print(",\"overruns\":");
+            Serial.print(crankOverruns);
+            Serial.print(",\"stalls\":");
+            Serial.print(crankStalls);
             Serial.print('}');
         }
         Serial.print(",\"motors\":[");
